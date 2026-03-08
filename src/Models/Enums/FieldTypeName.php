@@ -9,6 +9,7 @@ enum FieldTypeName: string
     case Attachment = 'ATTACHMENT';
     case Barcode = 'BARCODE';
     case Boolean = 'BOOLEAN';
+    case Coordinates = 'COORDINATES';
     case Date = 'DATE';
     case Datetime = 'DATETIME';
     case Decimal = 'DECIMAL';
