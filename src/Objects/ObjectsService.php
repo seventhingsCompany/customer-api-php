@@ -15,7 +15,7 @@ final class ObjectsService
 
     public function list(?ListOptions $options = null): array
     {
-        return $this->httpClient->get('objects', $options)->json();
+        return $this->httpClient->get('objects', $options)->json()['items'];
     }
 
     public function count(?ListOptions $options = null): int

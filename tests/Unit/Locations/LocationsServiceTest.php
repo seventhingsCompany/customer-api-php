@@ -33,10 +33,10 @@ final class LocationsServiceTest extends TestCase
     #[Test]
     public function listReturnsArray(): void
     {
-        $data = [['uuid' => 'loc1']];
-        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+        $items = [['uuid' => 'loc1']];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode(['items' => $items]))]);
 
-        $this->assertSame($data, $service->list());
+        $this->assertSame($items, $service->list());
         $this->assertStringEndsWith('/locations', (string) $this->history[0]['request']->getUri());
     }
 

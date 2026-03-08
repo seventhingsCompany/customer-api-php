@@ -35,12 +35,12 @@ final class ObjectsServiceTest extends TestCase
     #[Test]
     public function listReturnsArray(): void
     {
-        $data = [['uuid' => 'a'], ['uuid' => 'b']];
-        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+        $items = [['uuid' => 'a'], ['uuid' => 'b']];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode(['items' => $items]))]);
 
         $result = $service->list();
 
-        $this->assertSame($data, $result);
+        $this->assertSame($items, $result);
         $request = $this->history[0]['request'];
         $this->assertSame('GET', $request->getMethod());
         $this->assertStringEndsWith('/objects', (string) $request->getUri());
@@ -49,7 +49,7 @@ final class ObjectsServiceTest extends TestCase
     #[Test]
     public function listWithOptionsAppendsQueryString(): void
     {
-        $service = $this->createService([new GuzzleResponse(200, [], '[]')]);
+        $service = $this->createService([new GuzzleResponse(200, [], '{"items":[]}')]);
 
         $options = new \Seventhings\Models\ListOptions(page: 2, perPage: 10);
         $service->list($options);

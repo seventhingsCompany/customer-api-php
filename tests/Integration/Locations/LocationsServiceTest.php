@@ -29,7 +29,7 @@ final class LocationsServiceTest extends IntegrationTestCase
         $this->assertNotEmpty($uuid);
 
         $location = self::$client->locations->get($uuid);
-        $this->assertSame($uuid, $location['uuid']);
+        $this->assertSame($uuid, $location['location_uuid']);
 
         self::$client->locations->patch($uuid, ['name' => $name . ' Updated']);
 

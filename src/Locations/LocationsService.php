@@ -14,7 +14,7 @@ final class LocationsService
 
     public function list(?ListOptions $options = null): array
     {
-        return $this->httpClient->get('locations', $options)->json();
+        return $this->httpClient->get('locations', $options)->json()['items'];
     }
 
     public function count(?ListOptions $options = null): int

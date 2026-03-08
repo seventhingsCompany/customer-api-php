@@ -14,7 +14,7 @@ final class RoomsService
 
     public function list(?ListOptions $options = null): array
     {
-        return $this->httpClient->get('rooms', $options)->json();
+        return $this->httpClient->get('rooms', $options)->json()['items'];
     }
 
     public function count(?ListOptions $options = null): int
