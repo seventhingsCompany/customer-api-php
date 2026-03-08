@@ -26,8 +26,8 @@ readonly class TaskResponse
         public ?TimeInterval $recurringSchedule,
         public ?string $comment,
         public array $attachments,
-        public string $createdAt,
-        public string $updatedAt,
+        public ?string $createdAt,
+        public ?string $updatedAt,
     ) {}
 
     public static function fromArray(array $data): self
@@ -44,8 +44,8 @@ readonly class TaskResponse
             recurringSchedule: isset($data['recurring_schedule']) ? TimeInterval::fromArray($data['recurring_schedule']) : null,
             comment: $data['comment'] ?? null,
             attachments: array_map(fn(array $a) => AttachmentFile::fromArray($a), $data['attachments'] ?? []),
-            createdAt: $data['created_at'],
-            updatedAt: $data['updated_at'],
+            createdAt: $data['created_at'] ?? null,
+            updatedAt: $data['updated_at'] ?? null,
         );
     }
 }
