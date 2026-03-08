@@ -128,7 +128,7 @@ $recentObjs = $client->objects->list(new ListOptions(
     sort: ['updated_at' => SortDirection::Desc],
 ));
 pf('Objects', 'Got %d recently changed asset(s):', count($recentObjs));
-foreach ($recentObjs as $i => $obj) {
+foreach (array_values($recentObjs) as $i => $obj) {
     $name = $obj['inventory_name'] ?? '';
     $updatedAt = $obj['updated_at'] ?? '';
     pf('Objects', '  %d. %s (updated_at=%s)', $i + 1, $name, $updatedAt);
@@ -145,7 +145,7 @@ $filtered = $client->objects->list(new ListOptions(
     ],
 ));
 pf('Objects', 'Got %d asset(s) matching filter:', count($filtered));
-foreach ($filtered as $i => $obj) {
+foreach (array_values($filtered) as $i => $obj) {
     $name = $obj['inventory_name'] ?? '';
     pf('Objects', '  %d. %s', $i + 1, $name);
 }
@@ -205,6 +205,7 @@ $taskUuid = $client->tasks->create(new CreateTaskRequest(
     reminders: [
         new TimeInterval(TimeIntervalUnit::Days, 1),
     ],
+    recurringSchedule: null,
 ));
 pf('Tasks', 'Created task %s referencing object %s', $taskUuid, $taskObjUuid);
 
