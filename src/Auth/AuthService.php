@@ -11,10 +11,14 @@ use Seventhings\Models\TokenResponse;
 
 final class AuthService
 {
+    private string $clientId = '';
+
     public function __construct(private readonly HttpClient $httpClient) {}
 
     public function login(string $username, string $password, string $clientId): TokenResponse
     {
+        $this->clientId = $clientId;
+
         $response = $this->httpClient->postUnauthenticated('auth_token', [
             'grant_type' => 'password',
             'username' => $username,
@@ -31,6 +35,8 @@ final class AuthService
         string $clientId,
         ?SSOAppTarget $appTarget = null,
     ): TokenResponse {
+        $this->clientId = $clientId;
+
         $body = [
             'grant_type' => 'sso',
             'provider' => $provider->value,
@@ -52,6 +58,7 @@ final class AuthService
         $response = $this->httpClient->postUnauthenticated('auth_token', [
             'grant_type' => 'refresh_token',
             'refresh_token' => $refreshToken,
+            'client_id' => $this->clientId,
         ]);
 
         return TokenResponse::fromArray($response->json());
