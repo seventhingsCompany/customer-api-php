@@ -7,7 +7,9 @@ namespace Seventhings\Tests\Integration\FieldDefinitions;
 use Seventhings\Models\CreateFieldDefinition;
 use Seventhings\Models\Enums\AssetTrackingTemplate;
 use Seventhings\Models\Enums\FieldTypeName;
+use Seventhings\Models\FieldAttribute;
 use Seventhings\Models\FieldDefinitionFieldType;
+use Seventhings\Models\FieldValueConstraint;
 use Seventhings\Models\UpdateFieldDefinition;
 use Seventhings\Tests\Integration\IntegrationTestCase;
 
@@ -23,13 +25,21 @@ final class FieldDefinitionsServiceTest extends IntegrationTestCase
     public function testFieldDefinitionsCRUD(): void
     {
         $label = 'PHP SDK Field ' . $this->uniqueSuffix();
-        $fieldType = new FieldDefinitionFieldType(FieldTypeName::Text, []);
+        $fieldType = new FieldDefinitionFieldType(
+            FieldTypeName::Text,
+            [new FieldValueConstraint('max_length', 255)],
+        );
 
         $input = new CreateFieldDefinition(
             fieldType: $fieldType,
             label: $label,
-            attributes: [],
+            attributes: [
+                new FieldAttribute('mandatory', 'no'),
+                new FieldAttribute('mutable', 'yes'),
+                new FieldAttribute('internal', 'no'),
+            ],
             relations: [],
+            comment: '',
         );
 
         $uuid = self::$client->fieldDefinitions->create(AssetTrackingTemplate::Asset, $input);
@@ -45,8 +55,13 @@ final class FieldDefinitionsServiceTest extends IntegrationTestCase
             fieldKey: $field->fieldKey,
             fieldType: $fieldType,
             label: $updatedLabel,
-            attributes: [],
+            attributes: [
+                new FieldAttribute('mandatory', 'no'),
+                new FieldAttribute('mutable', 'yes'),
+                new FieldAttribute('internal', 'no'),
+            ],
             relations: [],
+            comment: '',
         );
 
         self::$client->fieldDefinitions->update(AssetTrackingTemplate::Asset, $uuid, $updateInput);
