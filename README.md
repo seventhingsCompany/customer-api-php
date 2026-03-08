@@ -4,8 +4,23 @@ PHP SDK for the [seventhings](https://www.7things.de) asset tracking API.
 
 ## Installation
 
+Add the repository to your `composer.json`:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "git@github.com:SeventhingsCompany/customer-api-php.git"
+        }
+    ]
+}
+```
+
+Then install:
+
 ```bash
-composer require seventhings/sdk
+composer require seventhings/customer-api-php
 ```
 
 **Requirements:** PHP ^8.5, Guzzle 7 (only runtime dependency).
