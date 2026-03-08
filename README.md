@@ -48,7 +48,7 @@ $client->auth->ping();
 // Login
 $token = $client->auth->login($username, $password, $clientId);
 
-// Refresh token
+// Refresh token (uses stored clientId from login)
 $refreshed = $client->auth->refresh($token->refreshToken);
 
 // Revoke all tokens
@@ -66,12 +66,15 @@ use Seventhings\Models\FileAttachment;
 // List objects
 $objects = $client->objects->list();
 
-// Create
-$uuid = $client->objects->create(['name' => 'Laptop #42']);
+// Create (field names are instance-specific)
+$uuid = $client->objects->create([
+    'inventory_name' => 'Laptop #42',
+    'barcode' => 'INV-0042',
+]);
 
 // Get, patch, delete
 $object = $client->objects->get($uuid);
-$client->objects->patch($uuid, ['name' => 'Laptop #43']);
+$client->objects->patch($uuid, ['inventory_name' => 'Laptop #43']);
 $client->objects->delete($uuid);
 
 // Count
@@ -82,15 +85,15 @@ $client->objects->archive($uuid);
 $client->objects->unarchive($uuid);
 
 // File attachments
-$client->objects->addFiles($uuid, [new FileAttachment('file', $fileUuid)]);
-$client->objects->removeFiles($uuid, [new FileAttachment('file', $fileUuid)]);
+$client->objects->addFiles($uuid, [new FileAttachment('documents', $fileUuid)]);
+$client->objects->removeFiles($uuid, [new FileAttachment('documents', $fileUuid)]);
 ```
 
 ### Rooms
 
 ```php
 $rooms = $client->rooms->list();
-$uuid = $client->rooms->create(['name' => 'Server Room']);
+$uuid = $client->rooms->create(['name' => 'Server Room', ...]);
 $room = $client->rooms->get($uuid);
 $client->rooms->patch($uuid, ['name' => 'Server Room A']);
 $count = $client->rooms->count();
@@ -145,14 +148,32 @@ $thumbnail = $client->files->getThumbnail($fileUuid);
 use Seventhings\Models\CreateTaskRequest;
 use Seventhings\Models\UpdateTaskRequest;
 use Seventhings\Models\TaskListOptions;
+use Seventhings\Models\TaskReferenceInput;
+use Seventhings\Models\TimeInterval;
 use Seventhings\Models\Enums\TaskStatus;
+use Seventhings\Models\Enums\TaskReferenceType;
+use Seventhings\Models\Enums\TimeIntervalUnit;
 
-// Create
-$uuid = $client->tasks->create(new CreateTaskRequest(title: 'Review inventory'));
+// Create (requires at least one reference and assignee)
+$uuid = $client->tasks->create(new CreateTaskRequest(
+    title: 'Review inventory',
+    deadline: '2026-12-31',
+    assignees: [$userUuid],
+    references: [new TaskReferenceInput(TaskReferenceType::Asset, $objectUuid)],
+    reminders: [new TimeInterval(TimeIntervalUnit::Days, 1)],
+    recurringSchedule: null,
+));
 
 // Get, update, delete
 $task = $client->tasks->get($uuid);
-$client->tasks->update($uuid, new UpdateTaskRequest(title: 'Updated title'));
+$client->tasks->update($uuid, new UpdateTaskRequest(
+    title: 'Updated title',
+    deadline: '2026-12-31',
+    assignees: [$userUuid],
+    references: [new TaskReferenceInput(TaskReferenceType::Asset, $objectUuid)],
+    reminders: [new TimeInterval(TimeIntervalUnit::Days, 1)],
+    recurringSchedule: null,
+));
 $client->tasks->delete($uuid);
 
 // Change status
@@ -169,9 +190,23 @@ use Seventhings\Models\CreateRentalCaseRequest;
 use Seventhings\Models\UpdateRentalCaseRequest;
 
 $rentals = $client->rentals->list();
-$uuid = $client->rentals->create(new CreateRentalCaseRequest(comment: 'Team event'));
+$uuid = $client->rentals->create(new CreateRentalCaseRequest(
+    renter: null,
+    references: null,
+    pickupDate: null,
+    returnDate: null,
+    comment: 'Team event',
+    recurringSchedule: null,
+));
 $rental = $client->rentals->get($uuid);
-$client->rentals->update($uuid, new UpdateRentalCaseRequest(comment: 'Updated'));
+$client->rentals->update($uuid, new UpdateRentalCaseRequest(
+    renter: null,
+    references: null,
+    pickupDate: null,
+    returnDate: null,
+    comment: 'Updated',
+    recurringSchedule: null,
+));
 $client->rentals->delete($uuid);
 ```
 
@@ -181,6 +216,8 @@ $client->rentals->delete($uuid);
 use Seventhings\Models\Enums\AssetTrackingTemplate;
 use Seventhings\Models\CreateFieldDefinition;
 use Seventhings\Models\FieldDefinitionFieldType;
+use Seventhings\Models\FieldValueConstraint;
+use Seventhings\Models\FieldAttribute;
 use Seventhings\Models\Enums\FieldTypeName;
 
 // List field definitions for a template
@@ -191,9 +228,15 @@ $field = $client->fieldDefinitions->get(AssetTrackingTemplate::Asset, $uuid);
 
 // Create a custom field
 $uuid = $client->fieldDefinitions->create(AssetTrackingTemplate::Asset, new CreateFieldDefinition(
-    fieldType: new FieldDefinitionFieldType(FieldTypeName::Text, []),
+    fieldType: new FieldDefinitionFieldType(FieldTypeName::Text, [
+        new FieldValueConstraint('max_length', 255),
+    ]),
     label: 'Serial Number',
-    attributes: [],
+    attributes: [
+        new FieldAttribute('mandatory', 'no'),
+        new FieldAttribute('mutable', 'yes'),
+        new FieldAttribute('internal', 'no'),
+    ],
     relations: [],
 ));
 ```
@@ -255,10 +298,9 @@ use Seventhings\Models\Enums\SortDirection;
 $options = new ListOptions(
     page: 1,
     perPage: 25,
-    sort: ['name' => SortDirection::Asc],
+    sort: ['updated_at' => SortDirection::Desc],
     filters: [
-        new FilterEntry('name', FilterOperator::Like, ['Laptop']),
-        new FilterEntry('status', FilterOperator::In, ['active', 'maintenance']),
+        new FilterEntry('inventory_name', FilterOperator::Like, ['Laptop']),
     ],
 );
 
