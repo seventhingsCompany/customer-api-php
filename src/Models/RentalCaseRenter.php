@@ -13,6 +13,14 @@ readonly class RentalCaseRenter
         public string $value,
     ) {}
 
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            type: RenterType::from($data['type']),
+            value: $data['value'],
+        );
+    }
+
     public function toArray(): array
     {
         return [

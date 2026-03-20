@@ -15,15 +15,19 @@ readonly class RentalCaseResponse
     public function __construct(
         public string $uuid,
         public RentalCaseStatus $status,
-        public ?string $renter,
+        public string $title,
+        public ?RentalCaseRenter $renter,
         public array $references,
-        public ?string $pickupDate,
-        public ?string $returnDate,
+        public ?string $issueDate,
+        public ?string $dueDate,
         public ?string $comment,
-        public ?TimeInterval $recurringSchedule,
+        public ?TimeInterval $issueDateReminder,
+        public ?TimeInterval $dueDateReminder,
+        public ?string $responsibleUserUuid,
+        public ?string $author,
         public array $attachments,
-        public string $createdAt,
-        public string $updatedAt,
+        public ?string $createdAt,
+        public ?string $updatedAt,
     ) {}
 
     public static function fromArray(array $data): self
@@ -31,15 +35,19 @@ readonly class RentalCaseResponse
         return new self(
             uuid: $data['uuid'],
             status: RentalCaseStatus::from($data['status']),
-            renter: $data['renter'] ?? null,
+            title: $data['title'],
+            renter: isset($data['renter']) ? RentalCaseRenter::fromArray($data['renter']) : null,
             references: array_map(fn(array $r) => RentalCaseReference::fromArray($r), $data['references'] ?? []),
-            pickupDate: $data['pickup_date'] ?? null,
-            returnDate: $data['return_date'] ?? null,
+            issueDate: $data['issue_date'] ?? null,
+            dueDate: $data['due_date'] ?? null,
             comment: $data['comment'] ?? null,
-            recurringSchedule: isset($data['recurring_schedule']) ? TimeInterval::fromArray($data['recurring_schedule']) : null,
+            issueDateReminder: isset($data['issue_date_reminder']) ? TimeInterval::fromArray($data['issue_date_reminder']) : null,
+            dueDateReminder: isset($data['due_date_reminder']) ? TimeInterval::fromArray($data['due_date_reminder']) : null,
+            responsibleUserUuid: $data['responsible_user_uuid'] ?? null,
+            author: $data['author'] ?? null,
             attachments: array_map(fn(array $a) => AttachmentFile::fromArray($a), $data['attachments'] ?? []),
-            createdAt: $data['created_at'],
-            updatedAt: $data['updated_at'],
+            createdAt: $data['created_at'] ?? null,
+            updatedAt: $data['updated_at'] ?? null,
         );
     }
 }

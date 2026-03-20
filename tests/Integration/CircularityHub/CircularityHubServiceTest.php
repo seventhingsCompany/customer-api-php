@@ -12,7 +12,7 @@ final class CircularityHubServiceTest extends IntegrationTestCase
     public function testSuggestCategory(): void
     {
         try {
-            $filter = new FilterObject(filter: ['name' => 'Test']);
+            $filter = new FilterObject();
             $result = self::$client->circularityHub->suggestCategory($filter);
             // Result may be null if no suggestion found
             if ($result !== null) {
@@ -67,14 +67,24 @@ final class CircularityHubServiceTest extends IntegrationTestCase
     public function testAddObjects(): void
     {
         try {
-            $entries = [
-                'test-uuid-' . $this->uniqueSuffix() => new \Seventhings\Models\AddObjectEntry(
-                    category: 'Electronics',
-                    price: '10.00',
-                ),
-            ];
-            self::$client->circularityHub->addObjects($entries);
-            $this->assertTrue(true);
+            $objUuid = self::$client->objects->create([
+                'inventory_name' => 'ch-add-obj-' . $this->uniqueSuffix(),
+                'barcode' => 'INT-CHADD-' . $this->uniqueSuffix(),
+                'purchasing_price' => 100.00,
+            ]);
+
+            try {
+                $entries = [
+                    $objUuid => new \Seventhings\Models\AddObjectEntry(
+                        category: 'category_furniture',
+                        price: '10.00',
+                    ),
+                ];
+                self::$client->circularityHub->addObjects($entries);
+                $this->assertTrue(true);
+            } finally {
+                self::$client->objects->delete($objUuid);
+            }
         } catch (\Throwable $e) {
             $this->markTestSkipped('CircularityHub not available: ' . $e->getMessage());
         }

@@ -46,14 +46,18 @@ final class RentalsServiceTest extends TestCase
         return [
             'uuid' => 'r1',
             'status' => 'borrowed',
-            'renter' => 'John Doe',
+            'title' => 'Test Rental',
+            'renter' => ['type' => 'plain', 'value' => 'John Doe'],
             'references' => [
                 ['type' => 'asset', 'uuid' => 'a1', 'name' => 'Laptop', 'id' => 5],
             ],
-            'pickup_date' => '2024-03-01',
-            'return_date' => '2024-03-15',
+            'issue_date' => '2024-03-01',
+            'due_date' => '2024-03-15',
             'comment' => 'Handle with care',
-            'recurring_schedule' => ['unit' => 'months', 'value' => 1],
+            'issue_date_reminder' => ['unit' => 'days', 'value' => 3],
+            'due_date_reminder' => ['unit' => 'days', 'value' => 1],
+            'responsible_user_uuid' => 'user-uuid-1',
+            'author' => 'admin@example.com',
             'attachments' => [
                 ['uuid' => 'att1', 'name' => 'receipt.pdf', 'type' => 'application/pdf', 'size' => 4096, 'data_uri' => '/file/att1/data', 'thumbnail_uri' => '/file/att1/thumbnail'],
             ],
@@ -74,13 +78,19 @@ final class RentalsServiceTest extends TestCase
         $this->assertInstanceOf(RentalCaseResponse::class, $result[0]);
         $this->assertSame('r1', $result[0]->uuid);
         $this->assertSame(RentalCaseStatus::Borrowed, $result[0]->status);
-        $this->assertSame('John Doe', $result[0]->renter);
+        $this->assertSame('Test Rental', $result[0]->title);
+        $this->assertInstanceOf(RentalCaseRenter::class, $result[0]->renter);
+        $this->assertSame(RenterType::Plain, $result[0]->renter->type);
+        $this->assertSame('John Doe', $result[0]->renter->value);
         $this->assertCount(1, $result[0]->references);
         $this->assertSame(RentalCaseReferenceType::Asset, $result[0]->references[0]->type);
-        $this->assertSame('2024-03-01', $result[0]->pickupDate);
-        $this->assertSame('2024-03-15', $result[0]->returnDate);
-        $this->assertNotNull($result[0]->recurringSchedule);
-        $this->assertSame(TimeIntervalUnit::Months, $result[0]->recurringSchedule->unit);
+        $this->assertSame('2024-03-01', $result[0]->issueDate);
+        $this->assertSame('2024-03-15', $result[0]->dueDate);
+        $this->assertNotNull($result[0]->issueDateReminder);
+        $this->assertSame(TimeIntervalUnit::Days, $result[0]->issueDateReminder->unit);
+        $this->assertNotNull($result[0]->dueDateReminder);
+        $this->assertSame('user-uuid-1', $result[0]->responsibleUserUuid);
+        $this->assertSame('admin@example.com', $result[0]->author);
         $this->assertCount(1, $result[0]->attachments);
 
         $this->assertStringEndsWith('/rental-management/rental-cases', (string) $this->history[0]['request']->getUri());
@@ -109,7 +119,8 @@ final class RentalsServiceTest extends TestCase
 
         $this->assertInstanceOf(RentalCaseResponse::class, $result);
         $this->assertSame('r1', $result->uuid);
-        $this->assertSame('John Doe', $result->renter);
+        $this->assertInstanceOf(RentalCaseRenter::class, $result->renter);
+        $this->assertSame('John Doe', $result->renter->value);
         $this->assertStringEndsWith('/rental-management/rental-case/r1', (string) $this->history[0]['request']->getUri());
     }
 
@@ -121,11 +132,14 @@ final class RentalsServiceTest extends TestCase
         ]);
 
         $request = new CreateRentalCaseRequest(
+            title: 'Test Rental',
+            issueDate: '2024-04-01',
+            dueDate: '2024-04-15',
+            comment: 'Test rental',
+            responsibleUserUuid: 'user-uuid-1',
             renter: new RentalCaseRenter(RenterType::Plain, 'Jane Doe'),
             references: [new RentalCaseReferenceInput(RentalCaseReferenceType::Asset, 'a1')],
-            pickupDate: '2024-04-01',
-            returnDate: '2024-04-15',
-            comment: 'Test rental',
+            attachments: [],
         );
 
         $uuid = $service->create($request);
@@ -139,7 +153,7 @@ final class RentalsServiceTest extends TestCase
         $body = json_decode((string) $req->getBody(), true);
         $this->assertSame(['type' => 'plain', 'value' => 'Jane Doe'], $body['renter']);
         $this->assertSame([['type' => 'asset', 'uuid' => 'a1']], $body['references']);
-        $this->assertSame('2024-04-01', $body['pickup_date']);
+        $this->assertSame('2024-04-01', $body['issue_date']);
     }
 
     #[Test]
@@ -148,7 +162,14 @@ final class RentalsServiceTest extends TestCase
         $service = $this->createService([new GuzzleResponse(204, [], '')]);
 
         $request = new UpdateRentalCaseRequest(
+            title: 'Updated Rental',
+            issueDate: '2024-04-01',
+            dueDate: '2024-04-15',
             comment: 'Updated comment',
+            responsibleUserUuid: 'user-uuid-1',
+            renter: new RentalCaseRenter(RenterType::Plain, 'Jane Doe'),
+            references: [],
+            attachments: [],
         );
 
         $service->update('r1', $request);
