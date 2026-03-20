@@ -7,49 +7,41 @@ namespace Seventhings\Models;
 readonly class UpdateRentalCaseRequest
 {
     /**
-     * @param RentalCaseReferenceInput[]|null $references
-     * @param string[]|null $attachments
+     * @param RentalCaseReferenceInput[] $references
+     * @param string[] $attachments
      */
     public function __construct(
-        public ?RentalCaseRenter $renter = null,
-        public ?array $references = null,
-        public ?string $pickupDate = null,
-        public ?string $returnDate = null,
-        public ?string $comment = null,
-        public ?TimeInterval $recurringSchedule = null,
-        public ?array $attachments = null,
+        public string $title,
+        public string $issueDate,
+        public string $dueDate,
+        public string $comment,
+        public string $responsibleUserUuid,
+        public RentalCaseRenter $renter,
+        public array $references,
+        public array $attachments,
+        public ?TimeInterval $issueDateReminder = null,
+        public ?TimeInterval $dueDateReminder = null,
     ) {}
 
     public function toArray(): array
     {
-        $data = [];
+        $data = [
+            'title' => $this->title,
+            'issue_date' => $this->issueDate,
+            'due_date' => $this->dueDate,
+            'comment' => $this->comment,
+            'responsible_user_uuid' => $this->responsibleUserUuid,
+            'renter' => $this->renter->toArray(),
+            'references' => array_map(fn(RentalCaseReferenceInput $r) => $r->toArray(), $this->references),
+            'attachments' => $this->attachments,
+        ];
 
-        if ($this->renter !== null) {
-            $data['renter'] = $this->renter->toArray();
+        if ($this->issueDateReminder !== null) {
+            $data['issue_date_reminder'] = $this->issueDateReminder->toArray();
         }
 
-        if ($this->references !== null) {
-            $data['references'] = array_map(fn(RentalCaseReferenceInput $r) => $r->toArray(), $this->references);
-        }
-
-        if ($this->pickupDate !== null) {
-            $data['pickup_date'] = $this->pickupDate;
-        }
-
-        if ($this->returnDate !== null) {
-            $data['return_date'] = $this->returnDate;
-        }
-
-        if ($this->comment !== null) {
-            $data['comment'] = $this->comment;
-        }
-
-        if ($this->recurringSchedule !== null) {
-            $data['recurring_schedule'] = $this->recurringSchedule->toArray();
-        }
-
-        if ($this->attachments !== null) {
-            $data['attachments'] = $this->attachments;
+        if ($this->dueDateReminder !== null) {
+            $data['due_date_reminder'] = $this->dueDateReminder->toArray();
         }
 
         return $data;
