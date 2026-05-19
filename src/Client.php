@@ -10,6 +10,7 @@ use Seventhings\FieldDefinitions\FieldDefinitionsService;
 use Seventhings\Files\FilesService;
 use Seventhings\Locations\LocationsService;
 use Seventhings\Objects\ObjectsService;
+use Seventhings\Persons\PersonsService;
 use Seventhings\Rentals\RentalsService;
 use Seventhings\Rooms\RoomsService;
 use Seventhings\Tasks\TasksService;
@@ -24,6 +25,7 @@ final class Client
     public readonly RoomsService $rooms;
     public readonly LocationsService $locations;
     public readonly UsersService $users;
+    public readonly PersonsService $persons;
     public readonly FilesService $files;
     public readonly TasksService $tasks;
     public readonly RentalsService $rentals;
@@ -38,6 +40,7 @@ final class Client
         $this->rooms = new RoomsService($httpClient);
         $this->locations = new LocationsService($httpClient);
         $this->users = new UsersService($httpClient);
+        $this->persons = new PersonsService($httpClient);
         $this->files = new FilesService($httpClient);
         $this->tasks = new TasksService($httpClient);
         $this->rentals = new RentalsService($httpClient);
