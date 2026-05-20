@@ -2,7 +2,7 @@
 
 /**
  * Demo — exercises the core seventhings PHP SDK modules (Auth, Objects,
- * Files, Tasks) against a real instance. Configure via environment variables:
+ * Files, Tasks, Persons) against a real instance. Configure via environment variables:
  *
  *   SEVENTHINGS_BASE_URL   — e.g. https://example.seventhings.com
  *   SEVENTHINGS_USERNAME   — login username
@@ -24,6 +24,8 @@ use Seventhings\Models\Enums\TimeIntervalUnit;
 use Seventhings\Models\FileAttachment;
 use Seventhings\Models\FilterEntry;
 use Seventhings\Models\ListOptions;
+use Seventhings\Models\PersonListOptions;
+use Seventhings\Models\Enums\UserSortOrder;
 use Seventhings\Models\TaskReferenceInput;
 use Seventhings\Models\Enums\TaskReferenceType;
 use Seventhings\Models\TimeInterval;
@@ -233,6 +235,48 @@ try {
 // Clean up reference object
 $client->objects->delete($taskObjUuid);
 pf('Tasks', 'Deleted reference object %s', $taskObjUuid);
+
+// ── Persons (read-only) ──────────────────────────────────────────────────────
+// The customer API exposes no DELETE for persons, so this demo only reads.
+// Create/CreateUser examples:
+//
+//   $uuid = $client->persons->create([
+//       'email' => 'new.person@example.com', 'first_name' => 'New', 'last_name' => 'Person',
+//   ]);
+//   $client->persons->createUser(new FilterObject(
+//       filter: ['email' => [FilterOperator::Eq->value => 'new.person@example.com']],
+//   ));
+
+section('Persons', 'Listing persons…');
+
+$personResp = $client->persons->list(new PersonListOptions(
+    page: 1,
+    perPage: 5,
+    sortBy: 'id',
+    order: UserSortOrder::Asc,
+));
+pf('Persons', 'Got %d person(s) (page 1, max 5):', count($personResp->items));
+foreach ($personResp->items as $i => $p) {
+    pf(
+        'Persons',
+        '  %d. id=%d uuid=%s %s %s <%s>',
+        $i + 1,
+        $p->id,
+        $p->uuid,
+        $p->firstname ?? '',
+        $p->lastname ?? '',
+        $p->email,
+    );
+}
+
+if (!empty($personResp->items)) {
+    $first = $personResp->items[0];
+    $byUuid = $client->persons->get($first->uuid);
+    pf('Persons', 'persons->get(%s) → id=%d email=%s', $first->uuid, $byUuid->id, $byUuid->email);
+
+    $byId = $client->persons->getById($first->id);
+    pf('Persons', 'persons->getById(%d) → uuid=%s email=%s', $first->id, $byId->uuid, $byId->email);
+}
 
 // ── Auth cleanup ─────────────────────────────────────────────────────────────
 

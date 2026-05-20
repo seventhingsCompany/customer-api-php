@@ -18,6 +18,7 @@ enum FieldTypeName: string
     case Link = 'LINK';
     case LinkedAssets = 'LINKED_ASSETS';
     case LinkedLocation = 'LINKED_LOCATION';
+    case LinkedPerson = 'LINKED_PERSON';
     case LinkedRoom = 'LINKED_ROOM';
     case LinkedUser = 'LINKED_USER';
     case LongText = 'LONG_TEXT';
