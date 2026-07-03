@@ -8,4 +8,5 @@ enum AssetTrackingTemplate: string
 {
     case Asset = 'asset';
     case Room = 'room';
+    case Person = 'person';
 }
