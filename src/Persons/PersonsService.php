@@ -30,6 +30,19 @@ final class PersonsService
         return PersonListResponse::fromArray($response->json());
     }
 
+    public function count(?PersonListOptions $options = null): int
+    {
+        $path = 'persons/count';
+        if ($options !== null) {
+            $qs = $options->toQueryString();
+            if ($qs !== '') {
+                $path .= '?' . $qs;
+            }
+        }
+
+        return $this->httpClient->get($path)->json()['count'];
+    }
+
     public function get(string $uuid): PersonResponse
     {
         $response = $this->httpClient->get('person/' . $uuid);
@@ -52,9 +65,27 @@ final class PersonsService
      */
     public function create(array $fields): string
     {
-        $response = $this->httpClient->post('persons', ['fields' => (object) $fields]);
+        $response = $this->httpClient->post('person', ['fields' => (object) $fields]);
 
         return Helpers::uuidFromLocationHeader($response);
+    }
+
+    /**
+     * Updates a person's fields. Unlike create, the PATCH endpoint expects
+     * the fields map directly (not wrapped in a `fields` object), and the
+     * API responds with an empty body — fetch the person again to read the
+     * updated values.
+     *
+     * @param array<string, mixed> $fields
+     */
+    public function patch(string $uuid, array $fields): void
+    {
+        $this->httpClient->patch('person/' . $uuid, $fields);
+    }
+
+    public function delete(string $uuid): void
+    {
+        $this->httpClient->delete('person/' . $uuid);
     }
 
     /**

@@ -123,6 +123,39 @@ $user = $client->users->get($uuid);
 $user = $client->users->getById($id);
 ```
 
+### Persons
+
+```php
+use Seventhings\Models\PersonListOptions;
+use Seventhings\Models\FilterObject;
+
+$result = $client->persons->list();
+// $result->items, $result->total, $result->page, etc.
+
+$count = $client->persons->count();
+
+$person = $client->persons->get($uuid);
+$person = $client->persons->getById($id);
+
+// Create — returns the new person UUID.
+// Field keys are template-defined (commonly first_name / last_name).
+$uuid = $client->persons->create([
+    'email' => 'max@example.com',
+    'first_name' => 'Max',
+]);
+
+// Update fields — the API returns no body, so re-fetch to read the result.
+$client->persons->patch($uuid, ['last_name' => 'Mustermann']);
+$person = $client->persons->get($uuid);
+
+$client->persons->delete($uuid);
+
+// Create a platform user from the person matched by a filter
+$client->persons->createUser(new FilterObject(
+    filter: ['email' => ['eq' => 'max@example.com']],
+));
+```
+
 ### Files
 
 ```php
@@ -221,6 +254,7 @@ use Seventhings\Models\FieldAttribute;
 use Seventhings\Models\Enums\FieldTypeName;
 
 // List field definitions for a template
+// (AssetTrackingTemplate::Asset, ::Room, or ::Person)
 $fields = $client->fieldDefinitions->list(AssetTrackingTemplate::Asset);
 
 // Get a specific field definition

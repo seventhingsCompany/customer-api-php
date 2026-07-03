@@ -236,15 +236,13 @@ try {
 $client->objects->delete($taskObjUuid);
 pf('Tasks', 'Deleted reference object %s', $taskObjUuid);
 
-// ── Persons (read-only) ──────────────────────────────────────────────────────
-// The customer API exposes no DELETE for persons, so this demo only reads.
-// Create/CreateUser examples:
+// ── Persons ──────────────────────────────────────────────────────────────────
+// Field keys are template-defined; the default person template uses
+// first_name / last_name. To turn a person into a platform user, use
+// createUser() with a filter that matches exactly one person:
 //
-//   $uuid = $client->persons->create([
-//       'email' => 'new.person@example.com', 'first_name' => 'New', 'last_name' => 'Person',
-//   ]);
 //   $client->persons->createUser(new FilterObject(
-//       filter: ['email' => [FilterOperator::Eq->value => 'new.person@example.com']],
+//       filter: ['email' => [FilterOperator::Eq->value => $email]],
 //   ));
 
 section('Persons', 'Listing persons…');
@@ -276,6 +274,37 @@ if (!empty($personResp->items)) {
 
     $byId = $client->persons->getById($first->id);
     pf('Persons', 'persons->getById(%d) → uuid=%s email=%s', $first->id, $byId->uuid, $byId->email);
+}
+
+pf('Persons', 'Total persons: %d', $client->persons->count());
+
+// Full lifecycle: create → patch → delete.
+$personEmail = sprintf('demo.person+%d@example.com', (int) (microtime(true) * 1000));
+$personUuid = $client->persons->create([
+    'email' => $personEmail,
+    'first_name' => 'Demo',
+    'last_name' => 'Person',
+]);
+pf('Persons', 'Created person %s <%s>', $personUuid, $personEmail);
+
+// PATCH returns an empty body, so re-fetch to read the updated values.
+$client->persons->patch($personUuid, ['last_name' => 'Patched']);
+$patched = $client->persons->get($personUuid);
+pf('Persons', 'Patched last_name → %s', $patched->lastname ?? '');
+
+$client->persons->delete($personUuid);
+pf('Persons', 'Deleted person %s', $personUuid);
+
+try {
+    $client->persons->get($personUuid);
+    fprintf(STDERR, "[Persons] Expected 404 after deletion, but get() succeeded\n");
+    exit(1);
+} catch (ApiException $e) {
+    if ($e->statusCode !== 404) {
+        fprintf(STDERR, "[Persons] Expected 404 after deletion, got: %s\n", $e->getMessage());
+        exit(1);
+    }
+    pf('Persons', 'Confirmed 404 after deletion');
 }
 
 // ── Auth cleanup ─────────────────────────────────────────────────────────────

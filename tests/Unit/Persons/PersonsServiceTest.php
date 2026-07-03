@@ -131,13 +131,69 @@ final class PersonsServiceTest extends TestCase
 
         $request = $this->history[0]['request'];
         $this->assertSame('POST', $request->getMethod());
-        $this->assertStringEndsWith('/persons', (string) $request->getUri());
+        $this->assertStringEndsWith('/person', (string) $request->getUri());
 
         $body = json_decode((string) $request->getBody(), true);
         $this->assertIsArray($body);
         $this->assertArrayHasKey('fields', $body);
         $this->assertSame('max@example.com', $body['fields']['email']);
         $this->assertSame('Max', $body['fields']['firstname']);
+    }
+
+    #[Test]
+    public function countReturnsCount(): void
+    {
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode(['count' => 7]))]);
+
+        $count = $service->count();
+
+        $this->assertSame(7, $count);
+
+        $request = $this->history[0]['request'];
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertStringEndsWith('/persons/count', (string) $request->getUri());
+    }
+
+    #[Test]
+    public function countAppendsQueryString(): void
+    {
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode(['count' => 0]))]);
+
+        $service->count(new PersonListOptions(page: 3, perPage: 50));
+
+        $uri = (string) $this->history[0]['request']->getUri();
+        $this->assertStringContainsString('/persons/count?', $uri);
+        $this->assertStringContainsString('page=3', $uri);
+        $this->assertStringContainsString('per_page=50', $uri);
+    }
+
+    #[Test]
+    public function patchSendsBareFields(): void
+    {
+        // The API responds 200 with an empty body, so patch returns void.
+        $service = $this->createService([new GuzzleResponse(200, [], '{}')]);
+
+        $service->patch('p1', ['last_name' => 'Jones']);
+
+        $request = $this->history[0]['request'];
+        $this->assertSame('PATCH', $request->getMethod());
+        $this->assertStringEndsWith('/person/p1', (string) $request->getUri());
+
+        $body = json_decode((string) $request->getBody(), true);
+        $this->assertArrayNotHasKey('fields', $body);
+        $this->assertSame('Jones', $body['last_name']);
+    }
+
+    #[Test]
+    public function deleteUsesCorrectPath(): void
+    {
+        $service = $this->createService([new GuzzleResponse(204, [], '')]);
+
+        $service->delete('p1');
+
+        $request = $this->history[0]['request'];
+        $this->assertSame('DELETE', $request->getMethod());
+        $this->assertStringEndsWith('/person/p1', (string) $request->getUri());
     }
 
     #[Test]
