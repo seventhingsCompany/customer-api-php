@@ -10,9 +10,21 @@ namespace Seventhings\Models;
  * Field names follow the live API response, which uses snake_case and
  * differs from the OpenAPI spec (the spec documents `uuid`/`firstname`/
  * `lastname`, but the wire format is `person_uuid`/`first_name`/`last_name`).
+ *
+ * Person fields are template-defined: the API returns each field as a flat
+ * top-level key named by its template `field_key`. The named constructor
+ * properties below are typed conveniences for the common fields, but a
+ * template may define additional custom fields. To avoid losing those, the
+ * full untouched wire map is preserved in `$fields`; read custom fields via
+ * `$fields['some_key']` or the null-safe `field('some_key')` accessor.
  */
 readonly class PersonResponse
 {
+    /**
+     * @param array<string, mixed> $fields The complete raw field map from the
+     *     API, including template-defined custom fields not surfaced as named
+     *     properties above.
+     */
     public function __construct(
         public string $uuid,
         public int $id,
@@ -30,7 +42,13 @@ readonly class PersonResponse
         public ?int $importedWithTemplateId,
         public ?string $importedAt,
         public ?int $createdOnImportWithTemplateId,
+        public array $fields = [],
     ) {}
+
+    public function field(string $key): mixed
+    {
+        return $this->fields[$key] ?? null;
+    }
 
     public static function fromArray(array $data): self
     {
@@ -51,6 +69,7 @@ readonly class PersonResponse
             importedWithTemplateId: $data['imported_with_template_id'] ?? null,
             importedAt: $data['imported_at'] ?? null,
             createdOnImportWithTemplateId: $data['created_on_import_with_template_id'] ?? null,
+            fields: $data,
         );
     }
 }

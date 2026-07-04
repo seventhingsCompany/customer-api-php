@@ -25,7 +25,6 @@ use Seventhings\Models\FileAttachment;
 use Seventhings\Models\FilterEntry;
 use Seventhings\Models\ListOptions;
 use Seventhings\Models\PersonListOptions;
-use Seventhings\Models\Enums\UserSortOrder;
 use Seventhings\Models\TaskReferenceInput;
 use Seventhings\Models\Enums\TaskReferenceType;
 use Seventhings\Models\TimeInterval;
@@ -250,8 +249,7 @@ section('Persons', 'Listing persons…');
 $personResp = $client->persons->list(new PersonListOptions(
     page: 1,
     perPage: 5,
-    sortBy: 'id',
-    order: UserSortOrder::Asc,
+    sort: ['id' => SortDirection::Asc],
 ));
 pf('Persons', 'Got %d person(s) (page 1, max 5):', count($personResp->items));
 foreach ($personResp->items as $i => $p) {

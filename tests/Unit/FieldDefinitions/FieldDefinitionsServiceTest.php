@@ -169,6 +169,97 @@ final class FieldDefinitionsServiceTest extends TestCase
         $this->assertSame(['a', 'b'], $body['possible_values']);
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
+    private function mandatoryFieldData(string $fieldKey, array $overrides = []): array
+    {
+        return array_merge($this->sampleFieldDefinitionData(), [
+            'field_key' => $fieldKey,
+            'attributes' => [['type' => 'mandatory', 'value' => 'yes']],
+        ], $overrides);
+    }
+
+    #[Test]
+    public function mandatoryFieldDefinitionsFiltersRequiredAndSystemManaged(): void
+    {
+        $data = [
+            $this->mandatoryFieldData('cost_center'),                              // required, custom → kept
+            $this->mandatoryFieldData('id'),                                       // required but system-managed → dropped
+            array_merge($this->sampleFieldDefinitionData(), [                      // not mandatory → dropped
+                'field_key' => 'nickname',
+                'attributes' => [['type' => 'mandatory', 'value' => 'no']],
+            ]),
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $result = $service->mandatoryFieldDefinitions(AssetTrackingTemplate::Person);
+
+        $this->assertCount(1, $result);
+        $this->assertSame('cost_center', $result[0]->fieldKey);
+        $this->assertTrue($result[0]->isMandatory());
+    }
+
+    #[Test]
+    public function missingMandatoryFieldsReportsAbsentAndNullKeys(): void
+    {
+        $data = [
+            $this->mandatoryFieldData('cost_center'),
+            $this->mandatoryFieldData('department'),
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $missing = $service->missingMandatoryFields(
+            AssetTrackingTemplate::Person,
+            ['cost_center' => 'CC-1', 'department' => null],
+        );
+
+        // cost_center present → satisfied; department null → still missing.
+        $this->assertSame(['department'], $missing);
+    }
+
+    #[Test]
+    public function missingMandatoryFieldsEmptyWhenSatisfied(): void
+    {
+        $data = [$this->mandatoryFieldData('cost_center')];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $missing = $service->missingMandatoryFields(
+            AssetTrackingTemplate::Person,
+            ['cost_center' => 'CC-1'],
+        );
+
+        $this->assertSame([], $missing);
+    }
+
+    #[Test]
+    public function allowedValuesReadsConstraint(): void
+    {
+        $data = $this->sampleFieldDefinitionData();
+        $data['field_type'] = [
+            'name' => 'DROPDOWN',
+            'constraints' => [
+                ['type' => 'allowed_values', 'value' => ['red', 'green', 'blue']],
+            ],
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $def = $service->get(AssetTrackingTemplate::Asset, 'fd-1');
+
+        $this->assertSame(['red', 'green', 'blue'], $def->fieldType->allowedValues());
+    }
+
+    #[Test]
+    public function allowedValuesNullWhenAbsent(): void
+    {
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($this->sampleFieldDefinitionData()))]);
+
+        $def = $service->get(AssetTrackingTemplate::Asset, 'fd-1');
+
+        $this->assertNull($def->fieldType->allowedValues());
+    }
+
     #[Test]
     public function updateSendsPut(): void
     {

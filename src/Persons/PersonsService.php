@@ -30,6 +30,33 @@ final class PersonsService
         return PersonListResponse::fromArray($response->json());
     }
 
+    /**
+     * Iterates every person across all pages, fetching one page at a time.
+     * The page from $options is ignored (iteration controls it); its perPage
+     * sets the page size and defaults to 100. Iteration stops on the first
+     * short (or empty) page.
+     *
+     * @return \Generator<int, PersonResponse>
+     */
+    public function all(?PersonListOptions $options = null): \Generator
+    {
+        $perPage = $options?->perPage ?? Helpers::DEFAULT_PAGE_SIZE;
+
+        for ($page = 1; ; $page++) {
+            $items = $this->list(new PersonListOptions(
+                page: $page,
+                perPage: $perPage,
+                sort: $options?->sort ?? [],
+            ))->items;
+
+            yield from $items;
+
+            if (count($items) < $perPage) {
+                return;
+            }
+        }
+    }
+
     public function count(?PersonListOptions $options = null): int
     {
         $path = 'persons/count';

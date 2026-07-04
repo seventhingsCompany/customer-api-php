@@ -9,6 +9,12 @@ use Seventhings\Models\Enums\FieldTypeName;
 readonly class FieldDefinitionFieldType
 {
     /**
+     * FieldValueConstraint type that enumerates the permitted values for a
+     * constrained field (e.g. a DROPDOWN).
+     */
+    public const CONSTRAINT_ALLOWED_VALUES = 'allowed_values';
+
+    /**
      * @param FieldValueConstraint[] $constraints
      */
     public function __construct(
@@ -33,5 +39,21 @@ readonly class FieldDefinitionFieldType
             'name' => $this->name->value,
             'constraints' => array_map(fn(FieldValueConstraint $c) => $c->toArray(), $this->constraints),
         ];
+    }
+
+    /**
+     * Returns the permitted values for a constrained field (e.g. a DROPDOWN),
+     * or null if no allowed-values constraint is present.
+     *
+     * @return list<mixed>|null
+     */
+    public function allowedValues(): ?array
+    {
+        foreach ($this->constraints as $constraint) {
+            if ($constraint->type === self::CONSTRAINT_ALLOWED_VALUES && is_array($constraint->value)) {
+                return array_values($constraint->value);
+            }
+        }
+        return null;
     }
 }

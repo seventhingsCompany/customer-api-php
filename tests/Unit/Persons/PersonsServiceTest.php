@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Seventhings\HttpClient;
 use Seventhings\Models\ApiException;
 use Seventhings\Models\Enums\FilterOperator;
-use Seventhings\Models\Enums\UserSortOrder;
+use Seventhings\Models\Enums\SortDirection;
 use Seventhings\Models\FilterObject;
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Models\PersonListResponse;
@@ -47,8 +47,7 @@ final class PersonsServiceTest extends TestCase
             ],
             'page' => 1,
             'per_page' => 25,
-            'sort_by' => 'id',
-            'order' => 'asc',
+            'sort' => ['id' => 'ASC'],
             'total' => 2,
         ];
         $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
@@ -58,6 +57,8 @@ final class PersonsServiceTest extends TestCase
         $this->assertInstanceOf(PersonListResponse::class, $result);
         $this->assertCount(2, $result->items);
         $this->assertSame(2, $result->total);
+        // The persons endpoint echoes the applied sort as a field => direction map.
+        $this->assertSame(['id' => 'ASC'], $result->sort);
         $this->assertInstanceOf(PersonResponse::class, $result->items[0]);
         $this->assertSame('p1', $result->items[0]->uuid);
         $this->assertSame('Alice', $result->items[0]->firstname);
@@ -69,24 +70,103 @@ final class PersonsServiceTest extends TestCase
     }
 
     #[Test]
+    public function listPreservesTemplateDefinedCustomFields(): void
+    {
+        // Person fields are template-defined and arrive as flat top-level keys.
+        // A custom key not surfaced as a typed prop must survive via ->fields.
+        $data = [
+            'items' => [
+                [
+                    'person_uuid' => 'p1',
+                    'id' => 1,
+                    'email' => 'a@b.com',
+                    'first_name' => 'Alice',
+                    'last_name' => 'Smith',
+                    'cost_center' => 'CC-100',
+                ],
+            ],
+            'page' => 1,
+            'per_page' => 25,
+            'sort' => [],
+            'total' => 1,
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $person = $service->list()->items[0];
+
+        // Typed convenience props still resolve (backward compatible).
+        $this->assertSame('Alice', $person->firstname);
+        // Custom field preserved via both the bag and the accessor.
+        $this->assertSame('CC-100', $person->fields['cost_center']);
+        $this->assertSame('CC-100', $person->field('cost_center'));
+    }
+
+    #[Test]
+    public function getPreservesFullRawFieldMap(): void
+    {
+        $data = [
+            'person_uuid' => 'p1',
+            'id' => 42,
+            'email' => 'a@b.com',
+            'first_name' => 'Alice',
+            'cost_center' => 'CC-100',
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $person = $service->get('p1');
+
+        $this->assertSame('CC-100', $person->field('cost_center'));
+        // The full untouched wire map is retained verbatim.
+        $this->assertSame($data, $person->fields);
+        // Missing keys read back as null, not an undefined-index error.
+        $this->assertNull($person->field('does_not_exist'));
+    }
+
+    #[Test]
     public function listWithOptionsAppendsQueryString(): void
     {
-        $data = ['items' => [], 'page' => 2, 'per_page' => 10, 'sort_by' => 'email', 'order' => 'desc', 'total' => 0];
+        $data = ['items' => [], 'page' => 2, 'per_page' => 10, 'sort' => ['email' => 'DESC'], 'total' => 0];
         $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
 
         $options = new PersonListOptions(
             page: 2,
             perPage: 10,
-            sortBy: 'email',
-            order: UserSortOrder::Desc,
+            sort: ['email' => SortDirection::Desc],
         );
         $service->list($options);
 
         $uri = (string) $this->history[0]['request']->getUri();
         $this->assertStringContainsString('page=2', $uri);
         $this->assertStringContainsString('per_page=10', $uri);
-        $this->assertStringContainsString('sort_by=email', $uri);
-        $this->assertStringContainsString('order=desc', $uri);
+        // Persons use the deep-object sort[field]=DIR format, not sort_by/order.
+        // Guzzle percent-encodes the brackets on the wire (the API accepts
+        // both forms and echoes the sort back either way).
+        $this->assertStringContainsString('sort%5Bemail%5D=DESC', $uri);
+        $this->assertStringNotContainsString('sort_by=', $uri);
+    }
+
+    #[Test]
+    public function allWalksPagesYieldingPersonResponses(): void
+    {
+        $page = fn(array $uuids) => json_encode([
+            'items' => array_map(fn($u) => ['person_uuid' => $u, 'id' => 1, 'email' => 'x@y.com'], $uuids),
+            'total' => 3,
+        ]);
+        // perPage=2: full page then short page ends iteration.
+        $service = $this->createService([
+            new GuzzleResponse(200, [], $page(['p1', 'p2'])),
+            new GuzzleResponse(200, [], $page(['p3'])),
+        ]);
+
+        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)), false);
+
+        $this->assertCount(3, $persons);
+        $this->assertInstanceOf(PersonResponse::class, $persons[0]);
+        $this->assertSame(['p1', 'p2', 'p3'], array_map(fn($p) => $p->uuid, $persons));
+
+        $this->assertCount(2, $this->history);
+        $this->assertStringContainsString('page=1', (string) $this->history[0]['request']->getUri());
+        $this->assertStringContainsString('page=2', (string) $this->history[1]['request']->getUri());
     }
 
     #[Test]

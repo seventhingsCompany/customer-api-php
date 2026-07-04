@@ -6,6 +6,12 @@ namespace Seventhings;
 
 final class Helpers
 {
+    /**
+     * Page size used by the `all()` auto-paginating iterators when the caller
+     * leaves perPage unset. Keeps iteration from making one request per row.
+     */
+    public const DEFAULT_PAGE_SIZE = 100;
+
     public static function uuidFromLocationHeader(Response $response): string
     {
         $location = $response->headerLine('Location');

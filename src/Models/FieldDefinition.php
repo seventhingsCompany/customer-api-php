@@ -7,6 +7,15 @@ namespace Seventhings\Models;
 readonly class FieldDefinition
 {
     /**
+     * FieldAttribute type marking a field as required when creating a
+     * resource. Its value is "yes" when the field is mandatory.
+     */
+    public const ATTRIBUTE_MANDATORY = 'mandatory';
+
+    /** The {@see ATTRIBUTE_MANDATORY} value that marks a field as required. */
+    private const MANDATORY_VALUE = 'yes';
+
+    /**
      * @param FieldAttribute[] $attributes
      * @param FieldRelation[] $relations
      */
@@ -41,5 +50,42 @@ readonly class FieldDefinition
             defaultValue: $data['default_value'] ?? null,
             possibleValues: $data['possible_values'] ?? null,
         );
+    }
+
+    /**
+     * Returns the value of the named attribute, or null if it is not present.
+     * Note a present attribute may itself carry a null value; use
+     * {@see hasAttribute()} to disambiguate if needed.
+     */
+    public function attribute(string $type): mixed
+    {
+        foreach ($this->attributes as $attribute) {
+            if ($attribute->type === $type) {
+                return $attribute->value;
+            }
+        }
+        return null;
+    }
+
+    /** Reports whether the named attribute is present. */
+    public function hasAttribute(string $type): bool
+    {
+        foreach ($this->attributes as $attribute) {
+            if ($attribute->type === $type) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Reports whether the field is configured as required for this instance.
+     * Mandatory fields must be supplied when creating a resource
+     * (object/asset, room, person) for this template, unless the key is
+     * system-managed (see {@see SystemManagedFieldKeys}).
+     */
+    public function isMandatory(): bool
+    {
+        return $this->attribute(self::ATTRIBUTE_MANDATORY) === self::MANDATORY_VALUE;
     }
 }
