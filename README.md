@@ -135,9 +135,17 @@ $user = $client->users->getById($id);
 ```php
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Models\FilterObject;
+use Seventhings\Models\Enums\SortDirection;
 
 $result = $client->persons->list();
 // $result->items, $result->total, $result->page, etc.
+
+// Sorting uses the deep-object sort[field]=DIR format (a field => direction
+// map), not sort_by/order. $result->sort echoes the applied sort back.
+$result = $client->persons->list(new PersonListOptions(
+    perPage: 25,
+    sort: ['id' => SortDirection::Desc],
+));
 
 // Each PersonResponse exposes typed convenience props (uuid, email, firstname, …).
 // Person fields are template-defined, so any custom field beyond those props is

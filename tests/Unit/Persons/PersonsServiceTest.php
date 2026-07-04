@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Seventhings\HttpClient;
 use Seventhings\Models\ApiException;
 use Seventhings\Models\Enums\FilterOperator;
-use Seventhings\Models\Enums\UserSortOrder;
+use Seventhings\Models\Enums\SortDirection;
 use Seventhings\Models\FilterObject;
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Models\PersonListResponse;
@@ -47,8 +47,7 @@ final class PersonsServiceTest extends TestCase
             ],
             'page' => 1,
             'per_page' => 25,
-            'sort_by' => 'id',
-            'order' => 'asc',
+            'sort' => ['id' => 'ASC'],
             'total' => 2,
         ];
         $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
@@ -58,6 +57,8 @@ final class PersonsServiceTest extends TestCase
         $this->assertInstanceOf(PersonListResponse::class, $result);
         $this->assertCount(2, $result->items);
         $this->assertSame(2, $result->total);
+        // The persons endpoint echoes the applied sort as a field => direction map.
+        $this->assertSame(['id' => 'ASC'], $result->sort);
         $this->assertInstanceOf(PersonResponse::class, $result->items[0]);
         $this->assertSame('p1', $result->items[0]->uuid);
         $this->assertSame('Alice', $result->items[0]->firstname);
@@ -86,8 +87,7 @@ final class PersonsServiceTest extends TestCase
             ],
             'page' => 1,
             'per_page' => 25,
-            'sort_by' => 'id',
-            'order' => 'asc',
+            'sort' => [],
             'total' => 1,
         ];
         $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
@@ -125,22 +125,23 @@ final class PersonsServiceTest extends TestCase
     #[Test]
     public function listWithOptionsAppendsQueryString(): void
     {
-        $data = ['items' => [], 'page' => 2, 'per_page' => 10, 'sort_by' => 'email', 'order' => 'desc', 'total' => 0];
+        $data = ['items' => [], 'page' => 2, 'per_page' => 10, 'sort' => ['email' => 'DESC'], 'total' => 0];
         $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
 
         $options = new PersonListOptions(
             page: 2,
             perPage: 10,
-            sortBy: 'email',
-            order: UserSortOrder::Desc,
+            sort: ['email' => SortDirection::Desc],
         );
         $service->list($options);
 
         $uri = (string) $this->history[0]['request']->getUri();
         $this->assertStringContainsString('page=2', $uri);
         $this->assertStringContainsString('per_page=10', $uri);
-        $this->assertStringContainsString('sort_by=email', $uri);
-        $this->assertStringContainsString('order=desc', $uri);
+        // Persons use the deep-object sort[field]=DIR format, not sort_by/order.
+        // Brackets are kept literal (matches ListOptions encoding).
+        $this->assertStringContainsString('sort[email]=DESC', $uri);
+        $this->assertStringNotContainsString('sort_by=', $uri);
     }
 
     #[Test]

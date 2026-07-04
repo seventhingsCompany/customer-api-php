@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Seventhings\Tests\Integration\Persons;
 
 use Seventhings\Models\ApiException;
-use Seventhings\Models\Enums\UserSortOrder;
+use Seventhings\Models\Enums\SortDirection;
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Tests\Integration\IntegrationTestCase;
 
@@ -22,11 +22,12 @@ final class PersonsServiceTest extends IntegrationTestCase
         $result = self::$client->persons->list(new PersonListOptions(
             page: 1,
             perPage: 5,
-            sortBy: 'id',
-            order: UserSortOrder::Asc,
+            sort: ['id' => SortDirection::Asc],
         ));
         $this->assertSame(1, $result->page);
         $this->assertSame(5, $result->perPage);
+        // The API echoes the applied sort back as a field => direction map.
+        $this->assertSame(['id' => 'ASC'], $result->sort);
     }
 
     public function testPersonsGetAndGetById(): void

@@ -46,8 +46,7 @@ final class PersonsService
             $items = $this->list(new PersonListOptions(
                 page: $page,
                 perPage: $perPage,
-                sortBy: $options?->sortBy,
-                order: $options?->order,
+                sort: $options?->sort ?? [],
             ))->items;
 
             yield from $items;
