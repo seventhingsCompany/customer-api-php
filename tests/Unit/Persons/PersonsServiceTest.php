@@ -139,8 +139,9 @@ final class PersonsServiceTest extends TestCase
         $this->assertStringContainsString('page=2', $uri);
         $this->assertStringContainsString('per_page=10', $uri);
         // Persons use the deep-object sort[field]=DIR format, not sort_by/order.
-        // Brackets are kept literal (matches ListOptions encoding).
-        $this->assertStringContainsString('sort[email]=DESC', $uri);
+        // Guzzle percent-encodes the brackets on the wire (the API accepts
+        // both forms and echoes the sort back either way).
+        $this->assertStringContainsString('sort%5Bemail%5D=DESC', $uri);
         $this->assertStringNotContainsString('sort_by=', $uri);
     }
 
