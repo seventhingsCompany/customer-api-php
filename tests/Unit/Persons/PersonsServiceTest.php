@@ -69,6 +69,60 @@ final class PersonsServiceTest extends TestCase
     }
 
     #[Test]
+    public function listPreservesTemplateDefinedCustomFields(): void
+    {
+        // Person fields are template-defined and arrive as flat top-level keys.
+        // A custom key not surfaced as a typed prop must survive via ->fields.
+        $data = [
+            'items' => [
+                [
+                    'person_uuid' => 'p1',
+                    'id' => 1,
+                    'email' => 'a@b.com',
+                    'first_name' => 'Alice',
+                    'last_name' => 'Smith',
+                    'cost_center' => 'CC-100',
+                ],
+            ],
+            'page' => 1,
+            'per_page' => 25,
+            'sort_by' => 'id',
+            'order' => 'asc',
+            'total' => 1,
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $person = $service->list()->items[0];
+
+        // Typed convenience props still resolve (backward compatible).
+        $this->assertSame('Alice', $person->firstname);
+        // Custom field preserved via both the bag and the accessor.
+        $this->assertSame('CC-100', $person->fields['cost_center']);
+        $this->assertSame('CC-100', $person->field('cost_center'));
+    }
+
+    #[Test]
+    public function getPreservesFullRawFieldMap(): void
+    {
+        $data = [
+            'person_uuid' => 'p1',
+            'id' => 42,
+            'email' => 'a@b.com',
+            'first_name' => 'Alice',
+            'cost_center' => 'CC-100',
+        ];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $person = $service->get('p1');
+
+        $this->assertSame('CC-100', $person->field('cost_center'));
+        // The full untouched wire map is retained verbatim.
+        $this->assertSame($data, $person->fields);
+        // Missing keys read back as null, not an undefined-index error.
+        $this->assertNull($person->field('does_not_exist'));
+    }
+
+    #[Test]
     public function listWithOptionsAppendsQueryString(): void
     {
         $data = ['items' => [], 'page' => 2, 'per_page' => 10, 'sort_by' => 'email', 'order' => 'desc', 'total' => 0];

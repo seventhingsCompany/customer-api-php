@@ -132,6 +132,11 @@ use Seventhings\Models\FilterObject;
 $result = $client->persons->list();
 // $result->items, $result->total, $result->page, etc.
 
+// Each PersonResponse exposes typed convenience props (uuid, email, firstname, …).
+// Person fields are template-defined, so any custom field beyond those props is
+// still available via the full raw map: $person->fields['custom_key'] or the
+// null-safe $person->field('custom_key').
+
 $count = $client->persons->count();
 
 $person = $client->persons->get($uuid);
