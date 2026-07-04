@@ -63,8 +63,15 @@ use Seventhings\Models\FilterEntry;
 use Seventhings\Models\Enums\FilterOperator;
 use Seventhings\Models\FileAttachment;
 
-// List objects
+// List objects (one page of raw arrays)
 $objects = $client->objects->list();
+
+// Iterate every object across all pages (lazy; default page size 100).
+// Each item is a type-safe Fields wrapper over the instance-defined body.
+foreach ($client->objects->all() as $obj) {
+    echo $obj->uuid(), ' ', $obj->string('inventory_name'), "\n";
+    $price = $obj->float('purchasing_price');   // null if absent or non-numeric
+}
 
 // Create (field names are instance-specific)
 $uuid = $client->objects->create([
@@ -262,6 +269,25 @@ use Seventhings\Models\Enums\FieldTypeName;
 // (AssetTrackingTemplate::Asset, ::Room, or ::Person)
 $fields = $client->fieldDefinitions->list(AssetTrackingTemplate::Asset);
 
+// Inspect a definition: is it required for this instance, and (for a
+// DROPDOWN etc.) what values are allowed?
+$fields[0]->isMandatory();                   // bool
+$fields[0]->attribute('mandatory');          // raw attribute value or null
+$fields[0]->fieldType->allowedValues();      // list<mixed> or null
+
+// Discover instance-required fields before creating a resource. System-managed
+// keys (id, uuid, timestamps, ...) are excluded automatically.
+$required = $client->fieldDefinitions->mandatoryFieldDefinitions(AssetTrackingTemplate::Person);
+
+// Fail fast: which required keys are missing from a create payload?
+$missing = $client->fieldDefinitions->missingMandatoryFields(
+    AssetTrackingTemplate::Person,
+    ['email' => 'max@example.com'],
+);
+if ($missing !== []) {
+    throw new \InvalidArgumentException('missing required fields: ' . implode(', ', $missing));
+}
+
 // Get a specific field definition
 $field = $client->fieldDefinitions->get(AssetTrackingTemplate::Asset, $uuid);
 
@@ -319,6 +345,11 @@ try {
     echo $e->status;     // e.g. "Not Found"
     echo $e->body;       // raw response body
     $e->isStatusCode(404); // true
+
+    // Convenience predicates for common statuses:
+    if ($e->isNotFound()) { /* 404 */ }
+    // also: isUnauthorized() 401, isForbidden() 403, isConflict() 409,
+    //       isRateLimited() 429, isServerError() 5xx
 } catch (NetworkException $e) {
     echo $e->getMessage(); // connection error details
 }
@@ -339,13 +370,22 @@ $options = new ListOptions(
     perPage: 25,
     sort: ['updated_at' => SortDirection::Desc],
     filters: [
-        new FilterEntry('inventory_name', FilterOperator::Like, ['Laptop']),
+        // Static constructors avoid spelling out the operator enum:
+        FilterEntry::like('inventory_name', 'Laptop'),
+        FilterEntry::in('status', 'active', 'reserved'),
+        // equivalent to: new FilterEntry('inventory_name', FilterOperator::Like, ['Laptop'])
     ],
 );
 
 $objects = $client->objects->list($options);
 $count = $client->objects->count($options);
+
+// Or iterate every matching object across all pages:
+foreach ($client->objects->all($options) as $obj) { /* ... */ }
 ```
+
+`all()` is available on `objects`, `rooms`, `locations` (yielding `Fields`),
+and on `persons` / `users` (yielding their typed response objects).
 
 Tasks and Users have their own option classes:
 

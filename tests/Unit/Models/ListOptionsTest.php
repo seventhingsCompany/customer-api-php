@@ -109,4 +109,41 @@ final class ListOptionsTest extends TestCase
         ]);
         $this->assertSame('filter[field][eq]=', $opts->toQueryString());
     }
+
+    #[Test]
+    public function filterConstructorsBuildEquivalentEntries(): void
+    {
+        $eq = FilterEntry::eq('status', 'active');
+        $this->assertSame('status', $eq->field);
+        $this->assertSame(FilterOperator::Eq, $eq->operator);
+        $this->assertSame(['active'], $eq->values);
+
+        $this->assertSame(FilterOperator::Neq, FilterEntry::neq('a', 'b')->operator);
+        $this->assertSame(FilterOperator::Gt, FilterEntry::gt('a', '1')->operator);
+        $this->assertSame(FilterOperator::Gte, FilterEntry::gte('a', '1')->operator);
+        $this->assertSame(FilterOperator::Lt, FilterEntry::lt('a', '1')->operator);
+        $this->assertSame(FilterOperator::Lte, FilterEntry::lte('a', '1')->operator);
+        $this->assertSame(FilterOperator::Like, FilterEntry::like('a', 'x')->operator);
+        $this->assertSame(FilterOperator::NotLike, FilterEntry::notLike('a', 'x')->operator);
+
+        $in = FilterEntry::in('tag', 'a', 'b', 'c');
+        $this->assertSame(FilterOperator::In, $in->operator);
+        $this->assertSame(['a', 'b', 'c'], $in->values);
+        $this->assertTrue($in->isMultiValueOp());
+
+        $this->assertSame(['x', 'y'], FilterEntry::nin('tag', 'x', 'y')->values);
+    }
+
+    #[Test]
+    public function filterConstructorsComposeInListOptions(): void
+    {
+        $opts = new ListOptions(filters: [
+            FilterEntry::eq('status', 'active'),
+            FilterEntry::in('tag', 'a', 'b'),
+        ]);
+        $this->assertSame(
+            'filter[status][eq]=active&filter[tag][in][]=a&filter[tag][in][]=b',
+            $opts->toQueryString(),
+        );
+    }
 }

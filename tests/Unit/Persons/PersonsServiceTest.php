@@ -144,6 +144,30 @@ final class PersonsServiceTest extends TestCase
     }
 
     #[Test]
+    public function allWalksPagesYieldingPersonResponses(): void
+    {
+        $page = fn(array $uuids) => json_encode([
+            'items' => array_map(fn($u) => ['person_uuid' => $u, 'id' => 1, 'email' => 'x@y.com'], $uuids),
+            'total' => 3,
+        ]);
+        // perPage=2: full page then short page ends iteration.
+        $service = $this->createService([
+            new GuzzleResponse(200, [], $page(['p1', 'p2'])),
+            new GuzzleResponse(200, [], $page(['p3'])),
+        ]);
+
+        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)), false);
+
+        $this->assertCount(3, $persons);
+        $this->assertInstanceOf(PersonResponse::class, $persons[0]);
+        $this->assertSame(['p1', 'p2', 'p3'], array_map(fn($p) => $p->uuid, $persons));
+
+        $this->assertCount(2, $this->history);
+        $this->assertStringContainsString('page=1', (string) $this->history[0]['request']->getUri());
+        $this->assertStringContainsString('page=2', (string) $this->history[1]['request']->getUri());
+    }
+
+    #[Test]
     public function getReturnsSinglePerson(): void
     {
         $data = ['person_uuid' => 'p1', 'id' => 42, 'email' => 'a@b.com', 'first_name' => 'Alice', 'last_name' => 'Smith'];

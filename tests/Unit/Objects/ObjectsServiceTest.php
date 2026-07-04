@@ -13,7 +13,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Seventhings\HttpClient;
 use Seventhings\Models\ApiException;
+use Seventhings\Models\Fields;
 use Seventhings\Models\FileAttachment;
+use Seventhings\Models\ListOptions;
 use Seventhings\Objects\ObjectsService;
 
 final class ObjectsServiceTest extends TestCase
@@ -44,6 +46,43 @@ final class ObjectsServiceTest extends TestCase
         $request = $this->history[0]['request'];
         $this->assertSame('GET', $request->getMethod());
         $this->assertStringEndsWith('/objects', (string) $request->getUri());
+    }
+
+    #[Test]
+    public function allWalksPagesAndWrapsInFields(): void
+    {
+        // perPage=2: a full page (2) then a short page (1) ends iteration.
+        $service = $this->createService([
+            new GuzzleResponse(200, [], json_encode(['items' => [['uuid' => 'a'], ['uuid' => 'b']]])),
+            new GuzzleResponse(200, [], json_encode(['items' => [['uuid' => 'c']]])),
+        ]);
+
+        $items = iterator_to_array($service->all(new ListOptions(perPage: 2)), false);
+
+        $this->assertCount(3, $items);
+        $this->assertContainsOnlyInstancesOf(Fields::class, $items);
+        $this->assertSame(['a', 'b', 'c'], array_map(fn(Fields $f) => $f->uuid(), $items));
+
+        // Two requests, incrementing pages, page size preserved.
+        $this->assertCount(2, $this->history);
+        $this->assertStringContainsString('page=1', (string) $this->history[0]['request']->getUri());
+        $this->assertStringContainsString('per_page=2', (string) $this->history[0]['request']->getUri());
+        $this->assertStringContainsString('page=2', (string) $this->history[1]['request']->getUri());
+    }
+
+    #[Test]
+    public function allStopsOnEmptyFirstPage(): void
+    {
+        // A full page exactly filling perPage, then an empty page.
+        $service = $this->createService([
+            new GuzzleResponse(200, [], json_encode(['items' => [['uuid' => 'a']]])),
+            new GuzzleResponse(200, [], json_encode(['items' => []])),
+        ]);
+
+        $items = iterator_to_array($service->all(new ListOptions(perPage: 1)), false);
+
+        $this->assertCount(1, $items);
+        $this->assertCount(2, $this->history);
     }
 
     #[Test]
