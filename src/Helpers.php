@@ -12,6 +12,22 @@ final class Helpers
      */
     public const DEFAULT_PAGE_SIZE = 100;
 
+    /**
+     * Keeps the flat field-map contract for room/location {uuid, fields}
+     * responses. Legacy flat maps pass through unchanged.
+     *
+     * @internal
+     */
+    public static function unwrapResourceFields(array $resource): array
+    {
+        if (!is_string($resource['uuid'] ?? null) || !is_array($resource['fields'] ?? null)) {
+            return $resource;
+        }
+
+        // Keep the envelope identity without overwriting a custom field.
+        return $resource['fields'] + ['uuid' => $resource['uuid']];
+    }
+
     public static function uuidFromLocationHeader(Response $response): string
     {
         $location = $response->headerLine('Location');

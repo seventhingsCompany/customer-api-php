@@ -7,6 +7,8 @@ namespace Seventhings\Objects;
 use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Models\Fields;
+use Seventhings\Models\HistoryListOptions;
+use Seventhings\Models\HistoryResponse;
 use Seventhings\Models\ListOptions;
 use Seventhings\Response;
 
@@ -64,6 +66,29 @@ final class ObjectsService
     public function get(string $uuid): array
     {
         return $this->httpClient->get('object/' . $uuid)->json();
+    }
+
+    /**
+     * Gets an object by scancode, including archived objects.
+     * Pass the barcode unescaped; it is encoded as a single path segment.
+     */
+    public function getByBarcode(string $barcode): array
+    {
+        return $this->httpClient->get('object/by-barcode/' . rawurlencode($barcode))->json();
+    }
+
+    /**
+     * Returns recorded changes, newest first. Dynamic event maps preserve all
+     * asset, task, rental_case, and object_merge payload fields.
+     *
+     * @return HistoryResponse<array<string, mixed>>
+     */
+    public function history(string $uuid, ?HistoryListOptions $options = null): HistoryResponse
+    {
+        return HistoryResponse::fromArray(
+            $this->httpClient->get('object/' . rawurlencode($uuid) . '/history', $options)->json(),
+            fn(array $item) => $item,
+        );
     }
 
     public function patch(string $uuid, array $fields): void

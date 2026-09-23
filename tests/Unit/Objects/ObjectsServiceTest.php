@@ -147,6 +147,41 @@ final class ObjectsServiceTest extends TestCase
     }
 
     #[Test]
+    public function getByBarcodeEncodesOnePathSegmentAndIncludesArchivedObjects(): void
+    {
+        $data = ['uuid' => 'abc', 'archived' => true, 'name' => 'Desk', 'custom' => ['value']];
+        $service = $this->createService([new GuzzleResponse(200, [], json_encode($data))]);
+
+        $this->assertSame($data, $service->getByBarcode('INV/100 ?#%'));
+        $request = $this->history[0]['request'];
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('/customer-api/v1/object/by-barcode/INV%2F100%20%3F%23%25', $request->getUri()->getPath());
+        $this->assertSame('', $request->getUri()->getQuery());
+        $this->assertSame('Bearer tok', $request->getHeaderLine('Authorization'));
+        $this->assertSame('application/json', $request->getHeaderLine('Accept'));
+    }
+
+    #[Test]
+    public function getByBarcodePropagatesNotFound(): void
+    {
+        $service = $this->createService([new GuzzleResponse(404, [], '{"message":"not found"}')]);
+        try {
+            $service->getByBarcode('missing');
+            $this->fail('Expected ApiException');
+        } catch (ApiException $e) {
+            $this->assertSame(404, $e->statusCode);
+        }
+    }
+
+    #[Test]
+    public function getByBarcodeRejectsMalformedJson(): void
+    {
+        $service = $this->createService([new GuzzleResponse(200, [], '{')]);
+        $this->expectException(\JsonException::class);
+        $service->getByBarcode('barcode');
+    }
+
+    #[Test]
     public function deleteReturnsVoid(): void
     {
         $service = $this->createService([new GuzzleResponse(204, [], '')]);

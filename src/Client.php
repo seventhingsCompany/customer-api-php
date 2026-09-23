@@ -12,6 +12,7 @@ use Seventhings\Locations\LocationsService;
 use Seventhings\Objects\ObjectsService;
 use Seventhings\Persons\PersonsService;
 use Seventhings\Rentals\RentalsService;
+use Seventhings\Reports\ReportsService;
 use Seventhings\Rooms\RoomsService;
 use Seventhings\Tasks\TasksService;
 use Seventhings\Users\UsersService;
@@ -29,6 +30,7 @@ final class Client
     public readonly FilesService $files;
     public readonly TasksService $tasks;
     public readonly RentalsService $rentals;
+    public readonly ReportsService $reports;
     public readonly FieldDefinitionsService $fieldDefinitions;
     public readonly CircularityHubService $circularityHub;
 
@@ -44,6 +46,7 @@ final class Client
         $this->files = new FilesService($httpClient);
         $this->tasks = new TasksService($httpClient);
         $this->rentals = new RentalsService($httpClient);
+        $this->reports = new ReportsService($httpClient);
         $this->fieldDefinitions = new FieldDefinitionsService($httpClient);
         $this->circularityHub = new CircularityHubService($httpClient);
     }

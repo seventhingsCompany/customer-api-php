@@ -81,6 +81,11 @@ $uuid = $client->objects->create([
 
 // Get, patch, delete
 $object = $client->objects->get($uuid);
+
+// Look up by scancode, including archived objects. Pass the raw barcode;
+// the SDK URL-encodes it as a single path segment.
+$object = $client->objects->getByBarcode('INV/0042');
+
 $client->objects->patch($uuid, ['inventory_name' => 'Laptop #43']);
 $client->objects->delete($uuid);
 
@@ -118,6 +123,11 @@ $count = $client->locations->count();
 $client->locations->delete($uuid);
 ```
 
+Room and location `list()`, `get()`, and `patch()` results are flat field maps,
+whether the API sends a flat record or a `{uuid, fields}` envelope. Custom
+fields are preserved, and the envelope UUID is included if the inner map has
+no `uuid` field. The `all()` iterators use the same normalization.
+
 ### Users
 
 ```php
@@ -151,6 +161,9 @@ $result = $client->persons->list(new PersonListOptions(
 // Person fields are template-defined, so any custom field beyond those props is
 // still available via the full raw map: $person->fields['custom_key'] or the
 // null-safe $person->field('custom_key').
+// Flat and {uuid, fields} responses are both supported. For wrapped responses,
+// ->fields is the untouched inner map. ->uuid accepts person_uuid or uuid,
+// preferring a non-empty legacy person_uuid when both are present.
 
 $count = $client->persons->count();
 
@@ -262,6 +275,59 @@ $client->rentals->update($uuid, new UpdateRentalCaseRequest(
 ));
 $client->rentals->delete($uuid);
 ```
+
+### Resource History
+
+```php
+use Seventhings\Models\HistoryListOptions;
+
+$options = new HistoryListOptions(page: 1, perPage: 25);
+$history = $client->objects->history($objectUuid, $options);
+// $history->items, ->page, ->perPage, ->total; newest changes first.
+
+foreach ($history->items as $event) {
+    echo $event['type']; // asset, task, rental_case, or object_merge
+    // Dynamic maps retain properties and merge-specific payloads such as
+    // user_id and absorbedObjectData.
+}
+
+// Other resources return typed history entries.
+$history = $client->rooms->history($roomUuid, $options);
+foreach ($history->items as $event) {
+    echo $event->roomUuid, ' ', $event->occurredAt, ' ', $event->eventName;
+    // Also: ->userUuid, ->description, ->details.
+    // details remains a JSON-encoded snapshot string (or an empty string).
+}
+
+$client->locations->history($locationUuid, $options); // LocationHistoryEntry
+$client->persons->history($personUuid, $options);    // PersonHistoryEntry
+$client->tasks->history($taskUuid, $options);        // TaskHistoryEntry
+$client->rentals->history($rentalUuid, $options);    // RentalCaseHistoryEntry
+```
+
+Omitting options uses the API defaults: page **1**, **50** entries per page.
+The API caps history pages at **200** entries. Use `HistoryListOptions` to
+request subsequent pages; resources without recorded changes return empty
+items. History does not accept list filters or sorting options.
+
+### PDF Reports
+
+```php
+use Seventhings\Models\CreateReportRequest;
+
+$templates = $client->reports->listTemplates(); // ReportTemplate[] (uuid, name)
+
+if ($templates !== []) {
+    $pdf = $client->reports->create(new CreateReportRequest(
+        reportTemplateUuid: $templates[0]->uuid,
+        objectUuids: [$objectUuid1, $objectUuid2], // At least one; order is preserved.
+    ));
+    file_put_contents('inventory.pdf', $pdf);
+}
+```
+
+`create()` returns a binary PDF string. Each call generates a new document;
+the API does not store it. Failed requests throw the usual `ApiException`.
 
 ### Field Definitions
 
@@ -419,7 +485,7 @@ $users = $client->users->list(new UserListOptions(
 - **No retry logic** — failed requests are not retried automatically.
 - **No caching** — all calls hit the API directly.
 - **CircularityHub uses integer IDs**, not UUIDs.
-- **No pagination iterators** — pagination is manual via `ListOptions`.
+- **History pagination is manual** — use `HistoryListOptions`; list iterators are described above.
 
 ## Running Tests
 

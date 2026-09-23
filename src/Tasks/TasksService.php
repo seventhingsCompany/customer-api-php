@@ -8,6 +8,9 @@ use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Models\CreateTaskRequest;
 use Seventhings\Models\Enums\TaskStatus;
+use Seventhings\Models\HistoryListOptions;
+use Seventhings\Models\HistoryResponse;
+use Seventhings\Models\TaskHistoryEntry;
 use Seventhings\Models\TaskListOptions;
 use Seventhings\Models\TaskResponse;
 use Seventhings\Models\UpdateTaskRequest;
@@ -49,6 +52,15 @@ final class TasksService
         $response = $this->httpClient->post('task-management/task', $request->toArray());
 
         return Helpers::uuidFromLocationHeader($response);
+    }
+
+    /** @return HistoryResponse<TaskHistoryEntry> Recorded changes, newest first. */
+    public function history(string $uuid, ?HistoryListOptions $options = null): HistoryResponse
+    {
+        return HistoryResponse::fromArray(
+            $this->httpClient->get('task-management/task/' . rawurlencode($uuid) . '/history', $options)->json(),
+            TaskHistoryEntry::fromArray(...),
+        );
     }
 
     public function update(string $uuid, UpdateTaskRequest $request): void

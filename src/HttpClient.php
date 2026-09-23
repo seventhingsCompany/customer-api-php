@@ -8,6 +8,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Seventhings\Models\ApiException;
+use Seventhings\Models\HistoryListOptions;
 use Seventhings\Models\ListOptions;
 use Seventhings\Models\NetworkException;
 
@@ -36,7 +37,7 @@ final class HttpClient
         return $this->token;
     }
 
-    public function get(string $path, ?ListOptions $options = null): Response
+    public function get(string $path, ListOptions|HistoryListOptions|null $options = null): Response
     {
         $url = $this->buildUrl($path);
         if ($options !== null) {
@@ -48,9 +49,9 @@ final class HttpClient
         return $this->doAuthenticated('GET', $url);
     }
 
-    public function post(string $path, ?array $body = null): Response
+    public function post(string $path, ?array $body = null, string $accept = 'application/json'): Response
     {
-        return $this->doAuthenticated('POST', $this->buildUrl($path), $body);
+        return $this->doRequest('POST', $this->buildUrl($path), $body, true, $accept);
     }
 
     public function patch(string $path, ?array $body = null): Response
@@ -101,11 +102,11 @@ final class HttpClient
         return $this->doRequest($method, $url, $body, true);
     }
 
-    private function doRequest(string $method, string $url, ?array $body, bool $authenticated): Response
+    private function doRequest(string $method, string $url, ?array $body, bool $authenticated, string $accept = 'application/json'): Response
     {
         $options = [
             'headers' => [
-                'Accept' => 'application/json',
+                'Accept' => $accept,
             ],
             'http_errors' => false,
         ];

@@ -16,6 +16,7 @@ use Seventhings\Client;
 use Seventhings\HttpClient;
 use Seventhings\Locations\LocationsService;
 use Seventhings\Objects\ObjectsService;
+use Seventhings\Reports\ReportsService;
 use Seventhings\Rooms\RoomsService;
 
 final class ClientTest extends TestCase
@@ -52,6 +53,7 @@ final class ClientTest extends TestCase
         $this->assertInstanceOf(ObjectsService::class, $client->objects);
         $this->assertInstanceOf(RoomsService::class, $client->rooms);
         $this->assertInstanceOf(LocationsService::class, $client->locations);
+        $this->assertInstanceOf(ReportsService::class, $client->reports);
     }
 
     #[Test]
