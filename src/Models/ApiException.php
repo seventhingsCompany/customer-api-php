@@ -42,6 +42,23 @@ class ApiException extends \RuntimeException
         return $this->statusCode === 403;
     }
 
+    /** Reports the API's explicit inactive-feature response, not a permission denial. */
+    public function isFeatureInactive(): bool
+    {
+        if (!$this->isForbidden()) {
+            return false;
+        }
+
+        try {
+            $payload = json_decode($this->body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
+
+        return is_array($payload)
+            && ($payload['message'] ?? null) === 'The required feature for this endpoint is not active';
+    }
+
     /** Reports whether the error is a 409 Conflict. */
     public function isConflict(): bool
     {

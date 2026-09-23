@@ -424,6 +424,8 @@ try {
     if ($e->isNotFound()) { /* 404 */ }
     // also: isUnauthorized() 401, isForbidden() 403, isConflict() 409,
     //       isRateLimited() 429, isServerError() 5xx
+    // isFeatureInactive() recognizes the API's explicit inactive-feature 403
+    // response; ordinary permission denials return false.
 } catch (NetworkException $e) {
     echo $e->getMessage(); // connection error details
 }

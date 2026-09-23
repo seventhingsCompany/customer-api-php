@@ -72,6 +72,10 @@ Reads a page of history for an existing room, location, and rental case when
 available. History entries expose timestamps, event names, descriptions, and
 JSON snapshot strings. Object history uses dynamic event maps instead.
 
+If the API explicitly reports that the rentals feature is inactive, the demo
+skips rental history and continues to authentication cleanup. Other API errors
+still fail the demo.
+
 ### 8. Auth cleanup
 
 Revokes all tokens for the session.

@@ -336,7 +336,15 @@ try {
 section('History', 'Reading room, location, and rental history…');
 foreach (['rooms' => 'room_uuid', 'locations' => 'location_uuid', 'rentals' => null] as $module => $uuidKey) {
     $service = $client->$module;
-    $items = $service->list(new ListOptions(perPage: 1));
+    try {
+        $items = $service->list(new ListOptions(perPage: 1));
+    } catch (ApiException $e) {
+        if ($module === 'rentals' && $e->isFeatureInactive()) {
+            pf('History', 'Rentals module is not active; skipping');
+            continue;
+        }
+        throw $e;
+    }
     if ($items === []) {
         pf('History', 'No %s available; skipping', $module);
         continue;

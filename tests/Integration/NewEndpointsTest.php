@@ -6,6 +6,7 @@ namespace Seventhings\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Seventhings\Models\ApiException;
 use Seventhings\Models\CreateReportRequest;
 use Seventhings\Models\HistoryListOptions;
 use Seventhings\Models\ListOptions;
@@ -38,11 +39,18 @@ final class NewEndpointsTest extends IntegrationTestCase
     public function historyPaginationMatchesCombinedPage(string $module, ?string $uuidKey): void
     {
         $service = self::$client->$module;
-        $items = match ($module) {
-            'persons' => $service->list(new PersonListOptions(perPage: 10))->items,
-            'tasks' => array_slice($service->list(), 0, 10),
-            default => $service->list(new ListOptions(page: 1, perPage: 10)),
-        };
+        try {
+            $items = match ($module) {
+                'persons' => $service->list(new PersonListOptions(perPage: 10))->items,
+                'tasks' => array_slice($service->list(), 0, 10),
+                default => $service->list(new ListOptions(page: 1, perPage: 10)),
+            };
+        } catch (ApiException $e) {
+            if ($module === 'rentals' && $e->isFeatureInactive()) {
+                $this->markTestSkipped('Rentals module is not active on this instance');
+            }
+            throw $e;
+        }
         if ($items === []) {
             $this->markTestSkipped("Instance has no $module");
         }
