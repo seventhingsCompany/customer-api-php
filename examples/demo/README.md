@@ -33,6 +33,8 @@ Logs in with the provided credentials and prints the user ID and a truncated acc
 
 - Lists the first page of objects (max 5)
 - Creates a new object, then patches its name
+- Looks up the object by barcode and reads its paginated history
+- Lists PDF templates and renders a report when a template is available (prints the byte count)
 - Archives and unarchives the object
 - Deletes the object and confirms a 404 response
 
@@ -55,10 +57,26 @@ These two calls demonstrate how to use `ListOptions` with `Sort` and `Filters`.
 - Looks up the current user's UUID
 - Creates a temporary object to use as a task reference
 - Creates a task with a deadline, assignee, reference, and reminder
-- Closes the task, deletes it, and confirms a 404
+- Closes the task, reads its history, deletes it, and confirms a 404
 - Cleans up the reference object
 
-### 6. Auth cleanup
+### 6. Persons
+
+- Lists persons and retrieves a person by UUID and numeric ID
+- Creates and patches a person, then reads its history
+- Deletes the person and confirms a 404
+
+### 7. Resource history
+
+Reads a page of history for an existing room, location, and rental case when
+available. History entries expose timestamps, event names, descriptions, and
+JSON snapshot strings. Object history uses dynamic event maps instead.
+
+If the API explicitly reports that the rentals feature is inactive, the demo
+skips rental history and continues to authentication cleanup. Other API errors
+still fail the demo.
+
+### 8. Auth cleanup
 
 Revokes all tokens for the session.
 

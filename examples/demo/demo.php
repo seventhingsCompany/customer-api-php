@@ -2,7 +2,7 @@
 
 /**
  * Demo — exercises the core seventhings PHP SDK modules (Auth, Objects,
- * Files, Tasks, Persons) against a real instance. Configure via environment variables:
+ * Files, Tasks, Persons, History, Reports) against a real instance. Configure via environment variables:
  *
  *   SEVENTHINGS_BASE_URL   — e.g. https://example.seventhings.com
  *   SEVENTHINGS_USERNAME   — login username
@@ -16,6 +16,7 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use Seventhings\Client;
 use Seventhings\Models\ApiException;
+use Seventhings\Models\CreateReportRequest;
 use Seventhings\Models\CreateTaskRequest;
 use Seventhings\Models\Enums\FilterOperator;
 use Seventhings\Models\Enums\SortDirection;
@@ -23,6 +24,7 @@ use Seventhings\Models\Enums\TaskStatus;
 use Seventhings\Models\Enums\TimeIntervalUnit;
 use Seventhings\Models\FileAttachment;
 use Seventhings\Models\FilterEntry;
+use Seventhings\Models\HistoryListOptions;
 use Seventhings\Models\ListOptions;
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Models\TaskReferenceInput;
@@ -90,10 +92,26 @@ $objUuid = $client->objects->create([
 ]);
 pf('Objects', 'Created object %s', $objUuid);
 
+$byBarcode = $client->objects->getByBarcode(sprintf('SDK-DEMO-%d', $ts));
+pf('Objects', 'Barcode lookup → %s', $byBarcode['asset_uuid'] ?? $byBarcode['uuid'] ?? '');
+
 // Patch
 $client->objects->patch($objUuid, ['inventory_name' => 'SDK Demo Object (updated)']);
 $updated = $client->objects->get($objUuid);
 pf('Objects', 'Patched object — inventory_name=%s', $updated['inventory_name']);
+
+$historyOptions = new HistoryListOptions(page: 1, perPage: 5);
+$objectHistory = $client->objects->history($objUuid, $historyOptions);
+pf('History', 'Object: %d total change(s), %d on this page', $objectHistory->total, count($objectHistory->items));
+
+// Render the object before deleting it. The API returns PDF bytes without
+// storing a document; this demo only prints the size.
+$templates = $client->reports->listTemplates();
+pf('Reports', 'Found %d PDF template(s)', count($templates));
+if ($templates !== []) {
+    $pdf = $client->reports->create(new CreateReportRequest($templates[0]->uuid, [$objUuid]));
+    pf('Reports', 'Rendered "%s": %d PDF bytes', $templates[0]->name, strlen($pdf));
+}
 
 // Archive / Unarchive
 $client->objects->archive($objUuid);
@@ -214,6 +232,9 @@ pf('Tasks', 'Created task %s referencing object %s', $taskUuid, $taskObjUuid);
 $client->tasks->updateStatus($taskUuid, TaskStatus::Closed);
 pf('Tasks', 'Updated task status to closed');
 
+$taskHistory = $client->tasks->history($taskUuid, $historyOptions);
+pf('History', 'Task: %d total change(s)', $taskHistory->total);
+
 // Delete the task + confirm 404
 $client->tasks->delete($taskUuid);
 pf('Tasks', 'Deleted task %s', $taskUuid);
@@ -290,6 +311,11 @@ $client->persons->patch($personUuid, ['last_name' => 'Patched']);
 $patched = $client->persons->get($personUuid);
 pf('Persons', 'Patched last_name → %s', $patched->lastname ?? '');
 
+$personHistory = $client->persons->history($personUuid, $historyOptions);
+foreach ($personHistory->items as $event) {
+    pf('History', 'Person: %s — %s', $event->occurredAt, $event->eventName);
+}
+
 $client->persons->delete($personUuid);
 pf('Persons', 'Deleted person %s', $personUuid);
 
@@ -303,6 +329,29 @@ try {
         exit(1);
     }
     pf('Persons', 'Confirmed 404 after deletion');
+}
+
+// ── History of existing resources ────────────────────────────────────────────
+
+section('History', 'Reading room, location, and rental history…');
+foreach (['rooms' => 'room_uuid', 'locations' => 'location_uuid', 'rentals' => null] as $module => $uuidKey) {
+    $service = $client->$module;
+    try {
+        $items = $service->list(new ListOptions(perPage: 1));
+    } catch (ApiException $e) {
+        if ($module === 'rentals' && $e->isFeatureInactive()) {
+            pf('History', 'Rentals module is not active; skipping');
+            continue;
+        }
+        throw $e;
+    }
+    if ($items === []) {
+        pf('History', 'No %s available; skipping', $module);
+        continue;
+    }
+    $uuid = $uuidKey === null ? $items[0]->uuid : ($items[0][$uuidKey] ?? $items[0]['uuid']);
+    $history = $service->history($uuid, $historyOptions);
+    pf('History', '%s: %d total change(s)', $module, $history->total);
 }
 
 // ── Auth cleanup ─────────────────────────────────────────────────────────────

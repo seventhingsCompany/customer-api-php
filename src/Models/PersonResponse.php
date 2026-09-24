@@ -7,15 +7,16 @@ namespace Seventhings\Models;
 /**
  * Person represents a person in the seventhings asset-tracking system.
  *
- * Field names follow the live API response, which uses snake_case and
- * differs from the OpenAPI spec (the spec documents `uuid`/`firstname`/
- * `lastname`, but the wire format is `person_uuid`/`first_name`/`last_name`).
+ * Accepts flat records and {uuid, fields} response envelopes. UUID accepts
+ * both the legacy person_uuid field and the newer uuid field. Common field
+ * keys use snake_case (first_name / last_name).
  *
- * Person fields are template-defined: the API returns each field as a flat
- * top-level key named by its template `field_key`. The named constructor
+ * Person fields are template-defined, named by their template `field_key`.
+ * The named constructor
  * properties below are typed conveniences for the common fields, but a
  * template may define additional custom fields. To avoid losing those, the
- * full untouched wire map is preserved in `$fields`; read custom fields via
+ * full untouched field map (the inner map for wrapped responses) is preserved
+ * in `$fields`; read custom fields via
  * `$fields['some_key']` or the null-safe `field('some_key')` accessor.
  */
 readonly class PersonResponse
@@ -52,8 +53,21 @@ readonly class PersonResponse
 
     public static function fromArray(array $data): self
     {
+        $uuid = $data['uuid'] ?? '';
+        if (!is_string($uuid)) {
+            throw new \TypeError('Person uuid must be a string');
+        }
+        if ($uuid !== '' && isset($data['fields'])) {
+            if (!is_array($data['fields'])) {
+                throw new \TypeError('Person fields must be an array');
+            }
+            $data = $data['fields'];
+        }
+
+        $legacyUuid = $data['person_uuid'] ?? '';
+
         return new self(
-            uuid: $data['person_uuid'] ?? '',
+            uuid: $legacyUuid !== '' ? $legacyUuid : $uuid,
             id: $data['id'] ?? 0,
             userUuid: $data['user_uuid'] ?? '',
             email: $data['email'] ?? '',

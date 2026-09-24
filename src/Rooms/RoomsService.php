@@ -7,7 +7,10 @@ namespace Seventhings\Rooms;
 use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Models\Fields;
+use Seventhings\Models\HistoryListOptions;
+use Seventhings\Models\HistoryResponse;
 use Seventhings\Models\ListOptions;
+use Seventhings\Models\RoomHistoryEntry;
 
 final class RoomsService
 {
@@ -15,7 +18,10 @@ final class RoomsService
 
     public function list(?ListOptions $options = null): array
     {
-        return $this->httpClient->get('rooms', $options)->json()['items'];
+        return array_map(
+            Helpers::unwrapResourceFields(...),
+            $this->httpClient->get('rooms', $options)->json()['items'],
+        );
     }
 
     /**
@@ -60,12 +66,21 @@ final class RoomsService
 
     public function get(string $uuid): array
     {
-        return $this->httpClient->get('room/' . $uuid)->json();
+        return Helpers::unwrapResourceFields($this->httpClient->get('room/' . $uuid)->json());
+    }
+
+    /** @return HistoryResponse<RoomHistoryEntry> Recorded changes, newest first. */
+    public function history(string $uuid, ?HistoryListOptions $options = null): HistoryResponse
+    {
+        return HistoryResponse::fromArray(
+            $this->httpClient->get('room/' . rawurlencode($uuid) . '/history', $options)->json(),
+            RoomHistoryEntry::fromArray(...),
+        );
     }
 
     public function patch(string $uuid, array $fields): array
     {
-        return $this->httpClient->patch('room/' . $uuid, $fields)->json();
+        return Helpers::unwrapResourceFields($this->httpClient->patch('room/' . $uuid, $fields)->json());
     }
 
     public function delete(string $uuid): void

@@ -7,6 +7,9 @@ namespace Seventhings\Persons;
 use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Models\FilterObject;
+use Seventhings\Models\HistoryListOptions;
+use Seventhings\Models\HistoryResponse;
+use Seventhings\Models\PersonHistoryEntry;
 use Seventhings\Models\PersonListOptions;
 use Seventhings\Models\PersonListResponse;
 use Seventhings\Models\PersonResponse;
@@ -82,6 +85,15 @@ final class PersonsService
         $response = $this->httpClient->get('person/by-id/' . $id);
 
         return PersonResponse::fromArray($response->json());
+    }
+
+    /** @return HistoryResponse<PersonHistoryEntry> Recorded changes, newest first. */
+    public function history(string $uuid, ?HistoryListOptions $options = null): HistoryResponse
+    {
+        return HistoryResponse::fromArray(
+            $this->httpClient->get('person/' . rawurlencode($uuid) . '/history', $options)->json(),
+            PersonHistoryEntry::fromArray(...),
+        );
     }
 
     /**

@@ -7,7 +7,10 @@ namespace Seventhings\Rentals;
 use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Models\CreateRentalCaseRequest;
+use Seventhings\Models\HistoryListOptions;
+use Seventhings\Models\HistoryResponse;
 use Seventhings\Models\ListOptions;
+use Seventhings\Models\RentalCaseHistoryEntry;
 use Seventhings\Models\RentalCaseResponse;
 use Seventhings\Models\UpdateRentalCaseRequest;
 
@@ -40,6 +43,15 @@ final class RentalsService
         $response = $this->httpClient->post('rental-management/rental-case', $request->toArray());
 
         return Helpers::uuidFromLocationHeader($response);
+    }
+
+    /** @return HistoryResponse<RentalCaseHistoryEntry> Recorded changes, newest first. */
+    public function history(string $uuid, ?HistoryListOptions $options = null): HistoryResponse
+    {
+        return HistoryResponse::fromArray(
+            $this->httpClient->get('rental-management/rental-case/' . rawurlencode($uuid) . '/history', $options)->json(),
+            RentalCaseHistoryEntry::fromArray(...),
+        );
     }
 
     public function update(string $uuid, UpdateRentalCaseRequest $request): void
