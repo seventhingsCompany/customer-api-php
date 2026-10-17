@@ -76,7 +76,20 @@ If the API explicitly reports that the rentals feature is inactive, the demo
 skips rental history and continues to authentication cleanup. Other API errors
 still fail the demo.
 
-### 8. Auth cleanup
+### 8. Catalog items
+
+Creates a temporary product catalog item, reads it, replaces its full state
+with PUT, finds it via a filtered list, deletes it and confirms a 404. Skipped
+when the product catalog feature or create permission is unavailable.
+
+### 9. Timed rental
+
+Creates a timed rental (`isFullDay: false` with `issueAt`/`dueAt` in a
+non-UTC offset), reads back the UTC timestamps, replaces it with a later due
+time, and deletes it together with its reference object. Skipped when the
+rentals feature is inactive.
+
+### 10. Auth cleanup
 
 Revokes all tokens for the session.
 

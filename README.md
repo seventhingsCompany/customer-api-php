@@ -35,7 +35,30 @@ $client = Client::withCredentials($baseUrl, $username, $password, $clientId);
 
 // Or use an existing token
 $client = Client::withToken($baseUrl, $accessToken);
+
+// Or exchange an OAuth 2.1 authorization code (PKCE); codes are single-use
+$client = Client::withAuthorizationCode($baseUrl, $code, $codeVerifier, $redirectUri, $clientId);
 ```
+
+### Rate Limiting
+
+Clients default to **200 requests per minute**, evenly spaced (one every
+300 ms) without bursts. The first request is immediate and idle time does not
+accumulate into a burst. Authentication, uploads, and downloads share the same
+per-client limit; separate client instances have independent limits. Each
+factory accepts the limit as its last argument:
+
+```php
+// Override the limit (requests per minute)
+$client = Client::withToken($baseUrl, $accessToken, requestsPerMinute: 100);
+
+// Disable throttling
+$client = Client::withCredentials($baseUrl, $username, $password, $clientId, requestsPerMinute: 0);
+```
+
+Throttling blocks the calling PHP process (`usleep`) and does not
+automatically retry API rate-limit errors (HTTP 429); see
+[Error Handling](#error-handling) for `retryAfter()`.
 
 ## Usage by Module
 
@@ -47,6 +70,11 @@ $client->auth->ping();
 
 // Login
 $token = $client->auth->login($username, $password, $clientId);
+
+// OAuth 2.1 authorization code + PKCE (form-encoded token exchange).
+// $redirectUri must match the authorization request.
+$token = $client->auth->loginAuthorizationCode($code, $codeVerifier, $redirectUri, $clientId);
+$client->setToken($token->accessToken);
 
 // Refresh token (uses stored clientId from login)
 $refreshed = $client->auth->refresh($token->refreshToken);
@@ -123,10 +151,8 @@ $count = $client->locations->count();
 $client->locations->delete($uuid);
 ```
 
-Room and location `list()`, `get()`, and `patch()` results are flat field maps,
-whether the API sends a flat record or a `{uuid, fields}` envelope. Custom
-fields are preserved, and the envelope UUID is included if the inner map has
-no `uuid` field. The `all()` iterators use the same normalization.
+Room and location `list()`, `get()`, and `patch()` return the API's flat
+field maps unchanged, including custom fields.
 
 ### Users
 
@@ -161,9 +187,7 @@ $result = $client->persons->list(new PersonListOptions(
 // Person fields are template-defined, so any custom field beyond those props is
 // still available via the full raw map: $person->fields['custom_key'] or the
 // null-safe $person->field('custom_key').
-// Flat and {uuid, fields} responses are both supported. For wrapped responses,
-// ->fields is the untouched inner map. ->uuid accepts person_uuid or uuid,
-// preferring a non-empty legacy person_uuid when both are present.
+// Responses are flat field maps; ->uuid is read from person_uuid.
 
 $count = $client->persons->count();
 
@@ -206,6 +230,10 @@ $data = $client->files->getData($fileUuid);
 
 // Download thumbnail
 $thumbnail = $client->files->getThumbnail($fileUuid);
+
+// Thumbnail fitted within 320x240 (aspect ratio preserved). Both dimensions
+// must be 1–2000; the API caches new sizes and may reject excess sizes (422).
+$small = $client->files->getThumbnail($fileUuid, 320, 240);
 ```
 
 ### Tasks
@@ -249,31 +277,88 @@ $client->tasks->updateStatus($uuid, TaskStatus::Closed);
 $tasks = $client->tasks->list(new TaskListOptions(status: TaskStatus::Open));
 ```
 
+`reminders: null` omits the field, `[]` explicitly disables reminders, and a
+zero interval (`new TimeInterval(TimeIntervalUnit::Days, 0)`) means "on the
+deadline".
+
 ### Rentals
 
 ```php
 use Seventhings\Models\CreateRentalCaseRequest;
 use Seventhings\Models\UpdateRentalCaseRequest;
+use Seventhings\Models\RentalCaseReferenceInput;
+use Seventhings\Models\RentalCaseRenter;
+use Seventhings\Models\Enums\RentalCaseReferenceType;
+use Seventhings\Models\Enums\RenterType;
 
 $rentals = $client->rentals->list();
+
+// Full-day rental (default when the kind and times are omitted)
 $uuid = $client->rentals->create(new CreateRentalCaseRequest(
-    renter: null,
-    references: null,
-    pickupDate: null,
-    returnDate: null,
-    comment: 'Team event',
-    recurringSchedule: null,
+    title: 'Team event',
+    issueDate: '2026-11-01',
+    dueDate: '2026-11-03',
+    comment: '',
+    responsibleUserUuid: $userUuid,
+    renter: new RentalCaseRenter(RenterType::Plain, 'Jane Doe'),
+    references: [new RentalCaseReferenceInput(RentalCaseReferenceType::Asset, $objectUuid)],
+    attachments: [],
 ));
-$rental = $client->rentals->get($uuid);
-$client->rentals->update($uuid, new UpdateRentalCaseRequest(
-    renter: null,
-    references: null,
-    pickupDate: null,
-    returnDate: null,
-    comment: 'Updated',
-    recurringSchedule: null,
+
+// Timed rental: any offset is accepted and stored as UTC
+$timed = $client->rentals->create(new CreateRentalCaseRequest(
+    title: 'Projector',
+    issueDate: '2026-11-01',
+    dueDate: '2026-11-01',
+    comment: '',
+    responsibleUserUuid: $userUuid,
+    renter: new RentalCaseRenter(RenterType::Plain, 'Jane Doe'),
+    references: [new RentalCaseReferenceInput(RentalCaseReferenceType::Asset, $objectUuid)],
+    attachments: [],
+    isFullDay: false,
+    issueAt: '2026-11-01T10:00:00+02:00',
+    dueAt: '2026-11-01T12:00:00+02:00',
 ));
+
+$rental = $client->rentals->get($timed);
+$rental->isFullDay; // false
+$rental->issueAt;   // "2026-11-01T08:00:00+00:00"
+
+// update() is a full replacement (PUT): send the complete state, not a patch
+$client->rentals->update($uuid, new UpdateRentalCaseRequest(/* same fields as create */));
 $client->rentals->delete($uuid);
+```
+
+A renter is required by the SDK types: although the API description marks it
+optional, the current server fails when it is omitted. On update, leaving
+`isFullDay`, `issueAt` and `dueAt` null keeps the stored kind and moves its
+times to the given dates.
+
+### Catalog Items
+
+Requires the product catalog feature. Object field keys carry a
+`catalog_object_` prefix; catalog metadata such as `id` does not.
+
+```php
+use Seventhings\Models\FilterEntry;
+use Seventhings\Models\ListOptions;
+
+$uuid = $client->catalogItems->create(['catalog_object_inventory_name' => 'Office chair']);
+$item = $client->catalogItems->get($uuid);   // CatalogItem { uuid, fields: Fields }
+$item->fields->string('catalog_object_inventory_name');
+
+$page = $client->catalogItems->list(new ListOptions(
+    perPage: 25,
+    filters: [FilterEntry::like('catalog_object_inventory_name', 'chair')],
+));                                          // items, page, perPage, total, sort
+foreach ($client->catalogItems->all() as $item) { /* ... */ }
+
+// PUT replaces all catalog fields; missing fields are emptied. Objects
+// previously created from this item are not changed.
+$client->catalogItems->update($uuid, ['catalog_object_inventory_name' => 'Desk chair'] + $item->fields->data);
+
+// Deleting leaves objects created from the item intact.
+$client->catalogItems->delete($uuid);
 ```
 
 ### Resource History
@@ -431,9 +516,29 @@ try {
 }
 ```
 
+`ApiException::$headers` holds the response headers (not included in the
+message); `header($name)` returns all values case-insensitively. Use
+`retryAfter()` to read `Retry-After` as delay-seconds or an HTTP date:
+
+```php
+if ($e->isRateLimited()) {
+    $delay = $e->retryAfter(); // ?int seconds; pass a DateTimeInterface as "now" for tests
+    if ($delay !== null) {
+        // Requeue the operation no earlier than $delay seconds from now.
+    } else {
+        // Missing or invalid header: apply your own bounded backoff.
+    }
+}
+```
+
+HTTP dates are rounded up to whole seconds and past dates return `0`.
+Missing, repeated, invalid, or overflowing values return `null`. The helper
+also works on other errors with this header (e.g. HTTP 503). It does not sleep
+or retry; the SDK sends each operation once.
+
 ## ListOptions & Filtering
 
-Use `ListOptions` for paginated, filtered, and sorted requests on Objects, Rooms, Locations, and Rentals.
+Use `ListOptions` for paginated, filtered, and sorted requests on Objects, Rooms, Locations, Rentals, and Catalog Items.
 
 ```php
 use Seventhings\Models\ListOptions;
@@ -461,7 +566,7 @@ foreach ($client->objects->all($options) as $obj) { /* ... */ }
 ```
 
 `all()` is available on `objects`, `rooms`, `locations` (yielding `Fields`),
-and on `persons` / `users` (yielding their typed response objects).
+and on `persons` / `users` / `catalogItems` (yielding their typed response objects).
 
 Tasks and Users have their own option classes:
 
@@ -484,7 +589,8 @@ $users = $client->users->list(new UserListOptions(
 ## Scope & Limitations
 
 - **No auto-refresh** — tokens are not automatically refreshed; call `$client->auth->refresh()` and `$client->setToken()` manually.
-- **No retry logic** — failed requests are not retried automatically.
+- **No retry logic** — failed requests (including HTTP 429) are not retried automatically; use `ApiException::retryAfter()` to schedule your own retry.
+- **Client-side throttling** — 200 requests/minute per client by default; see [Rate Limiting](#rate-limiting).
 - **No caching** — all calls hit the API directly.
 - **CircularityHub uses integer IDs**, not UUIDs.
 - **History pagination is manual** — use `HistoryListOptions`; list iterators are described above.

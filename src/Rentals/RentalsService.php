@@ -54,6 +54,10 @@ final class RentalsService
         );
     }
 
+    /**
+     * Replaces a rental case (PUT). Send the complete state, not a partial
+     * patch: omitted values may be cleared.
+     */
     public function update(string $uuid, UpdateRentalCaseRequest $request): void
     {
         $this->httpClient->put('rental-management/rental-case/' . $uuid, $request->toArray());

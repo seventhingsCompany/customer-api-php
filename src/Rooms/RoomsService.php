@@ -18,10 +18,7 @@ final class RoomsService
 
     public function list(?ListOptions $options = null): array
     {
-        return array_map(
-            Helpers::unwrapResourceFields(...),
-            $this->httpClient->get('rooms', $options)->json()['items'],
-        );
+        return $this->httpClient->get('rooms', $options)->json()['items'];
     }
 
     /**
@@ -66,7 +63,7 @@ final class RoomsService
 
     public function get(string $uuid): array
     {
-        return Helpers::unwrapResourceFields($this->httpClient->get('room/' . $uuid)->json());
+        return $this->httpClient->get('room/' . $uuid)->json();
     }
 
     /** @return HistoryResponse<RoomHistoryEntry> Recorded changes, newest first. */
@@ -80,7 +77,7 @@ final class RoomsService
 
     public function patch(string $uuid, array $fields): array
     {
-        return Helpers::unwrapResourceFields($this->httpClient->patch('room/' . $uuid, $fields)->json());
+        return $this->httpClient->patch('room/' . $uuid, $fields)->json();
     }
 
     public function delete(string $uuid): void
