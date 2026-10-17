@@ -28,6 +28,9 @@ readonly class RentalCaseResponse
         public array $attachments,
         public ?string $createdAt,
         public ?string $updatedAt,
+        public bool $isFullDay = true,
+        public ?string $issueAt = null,
+        public ?string $dueAt = null,
     ) {}
 
     public static function fromArray(array $data): self
@@ -48,6 +51,9 @@ readonly class RentalCaseResponse
             attachments: array_map(fn(array $a) => AttachmentFile::fromArray($a), $data['attachments'] ?? []),
             createdAt: $data['created_at'] ?? null,
             updatedAt: $data['updated_at'] ?? null,
+            isFullDay: $data['is_full_day'] ?? true,
+            issueAt: $data['issue_at'] ?? null,
+            dueAt: $data['due_at'] ?? null,
         );
     }
 }

@@ -18,10 +18,7 @@ final class LocationsService
 
     public function list(?ListOptions $options = null): array
     {
-        return array_map(
-            Helpers::unwrapResourceFields(...),
-            $this->httpClient->get('locations', $options)->json()['items'],
-        );
+        return $this->httpClient->get('locations', $options)->json()['items'];
     }
 
     /**
@@ -67,7 +64,7 @@ final class LocationsService
 
     public function get(string $uuid): array
     {
-        return Helpers::unwrapResourceFields($this->httpClient->get('location/' . $uuid)->json());
+        return $this->httpClient->get('location/' . $uuid)->json();
     }
 
     /** @return HistoryResponse<LocationHistoryEntry> Recorded changes, newest first. */
@@ -81,7 +78,7 @@ final class LocationsService
 
     public function patch(string $uuid, array $fields): array
     {
-        return Helpers::unwrapResourceFields($this->httpClient->patch('location/' . $uuid, $fields)->json());
+        return $this->httpClient->patch('location/' . $uuid, $fields)->json();
     }
 
     public function delete(string $uuid): void

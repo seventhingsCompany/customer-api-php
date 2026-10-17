@@ -2,7 +2,7 @@
 
 /**
  * Demo — exercises the core seventhings PHP SDK modules (Auth, Objects,
- * Files, Tasks, Persons, History, Reports) against a real instance. Configure via environment variables:
+ * Files, Tasks, Persons, History, Reports, Catalog, Rentals) against a real instance. Configure via environment variables:
  *
  *   SEVENTHINGS_BASE_URL   — e.g. https://example.seventhings.com
  *   SEVENTHINGS_USERNAME   — login username
@@ -16,9 +16,12 @@ require __DIR__ . '/../../vendor/autoload.php';
 
 use Seventhings\Client;
 use Seventhings\Models\ApiException;
+use Seventhings\Models\CreateRentalCaseRequest;
 use Seventhings\Models\CreateReportRequest;
 use Seventhings\Models\CreateTaskRequest;
 use Seventhings\Models\Enums\FilterOperator;
+use Seventhings\Models\Enums\RentalCaseReferenceType;
+use Seventhings\Models\Enums\RenterType;
 use Seventhings\Models\Enums\SortDirection;
 use Seventhings\Models\Enums\TaskStatus;
 use Seventhings\Models\Enums\TimeIntervalUnit;
@@ -27,9 +30,12 @@ use Seventhings\Models\FilterEntry;
 use Seventhings\Models\HistoryListOptions;
 use Seventhings\Models\ListOptions;
 use Seventhings\Models\PersonListOptions;
+use Seventhings\Models\RentalCaseReferenceInput;
+use Seventhings\Models\RentalCaseRenter;
 use Seventhings\Models\TaskReferenceInput;
 use Seventhings\Models\Enums\TaskReferenceType;
 use Seventhings\Models\TimeInterval;
+use Seventhings\Models\UpdateRentalCaseRequest;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -352,6 +358,102 @@ foreach (['rooms' => 'room_uuid', 'locations' => 'location_uuid', 'rentals' => n
     $uuid = $uuidKey === null ? $items[0]->uuid : ($items[0][$uuidKey] ?? $items[0]['uuid']);
     $history = $service->history($uuid, $historyOptions);
     pf('History', '%s: %d total change(s)', $module, $history->total);
+}
+
+// ── Catalog items ────────────────────────────────────────────────────────────
+
+section('Catalog', 'Creating a temporary catalog item…');
+$catalogName = sprintf('SDK Demo Catalog %d', $ts);
+$catalogUuid = null;
+try {
+    $catalogUuid = $client->catalogItems->create(['catalog_object_inventory_name' => $catalogName]);
+} catch (ApiException $e) {
+    if (!$e->isForbidden()) {
+        throw $e;
+    }
+    pf('Catalog', 'Skipped: product catalog feature or create permission unavailable');
+}
+if ($catalogUuid !== null) {
+    try {
+        // PUT replaces the entire state: send the read field map back, not a patch.
+        $item = $client->catalogItems->get($catalogUuid);
+        $client->catalogItems->update($catalogUuid, ['catalog_object_inventory_name' => $catalogName . ' updated'] + $item->fields->data);
+        $page = $client->catalogItems->list(new ListOptions(page: 1, perPage: 5, filters: [
+            FilterEntry::eq('catalog_object_inventory_name', $catalogName . ' updated'),
+        ]));
+        if (count($page->items) !== 1 || $page->items[0]->uuid !== $catalogUuid) {
+            throw new \RuntimeException('catalog filtered list did not return the temporary item');
+        }
+        pf('Catalog', 'Verified create, get, PUT and filtered list — total=%d', $page->total);
+    } finally {
+        $client->catalogItems->delete($catalogUuid);
+    }
+    try {
+        $client->catalogItems->get($catalogUuid);
+        fprintf(STDERR, "[Catalog] Expected 404 after deletion\n");
+        exit(1);
+    } catch (\Throwable $e) {
+        if (!isNotFound($e)) {
+            throw $e;
+        }
+        pf('Catalog', 'Deleted temporary item; confirmed 404');
+    }
+}
+
+// ── Timed rental ─────────────────────────────────────────────────────────────
+
+section('Rentals', 'Creating and updating a timed rental…');
+$rentalObjUuid = $client->objects->create([
+    'inventory_name' => 'SDK Demo Rental Target',
+    'barcode'        => sprintf('SDK-RENTAL-%d', $ts),
+]);
+try {
+    // A future date with a non-UTC offset demonstrates UTC normalization.
+    $start = (new \DateTimeImmutable('+1 year', new \DateTimeZone('+02:00')))->setTime(10, 0);
+    $date = $start->format('Y-m-d');
+    $rentalArgs = [
+        'issueDate' => $date,
+        'dueDate' => $date,
+        'comment' => '',
+        'responsibleUserUuid' => $currentUser->uuid,
+        'renter' => new RentalCaseRenter(RenterType::Plain, 'SDK Demo'),
+        'references' => [new RentalCaseReferenceInput(RentalCaseReferenceType::Asset, $rentalObjUuid)],
+        'attachments' => [],
+        'isFullDay' => false,
+        'issueAt' => $start->format(\DateTimeInterface::ATOM),
+    ];
+    $rentalUuid = null;
+    try {
+        $rentalUuid = $client->rentals->create(new CreateRentalCaseRequest(
+            ...$rentalArgs,
+            title: 'SDK Demo Timed Rental',
+            dueAt: $start->modify('+2 hours')->format(\DateTimeInterface::ATOM),
+        ));
+    } catch (ApiException $e) {
+        if (!$e->isFeatureInactive()) {
+            throw $e;
+        }
+        pf('Rentals', 'Rentals module is not active; skipping');
+    }
+    if ($rentalUuid !== null) {
+        try {
+            $rental = $client->rentals->get($rentalUuid);
+            pf('Rentals', 'Created timed rental — issue_at=%s, due_at=%s', $rental->issueAt, $rental->dueAt);
+            // PUT replaces the full state, so resend every field.
+            $client->rentals->update($rentalUuid, new UpdateRentalCaseRequest(
+                ...$rentalArgs,
+                title: 'SDK Demo Timed Rental updated',
+                dueAt: $start->modify('+3 hours')->format(\DateTimeInterface::ATOM),
+            ));
+            $rental = $client->rentals->get($rentalUuid);
+            pf('Rentals', 'Updated timed rental — due_at=%s', $rental->dueAt);
+        } finally {
+            $client->rentals->delete($rentalUuid);
+            pf('Rentals', 'Deleted rental %s', $rentalUuid);
+        }
+    }
+} finally {
+    $client->objects->delete($rentalObjUuid);
 }
 
 // ── Auth cleanup ─────────────────────────────────────────────────────────────

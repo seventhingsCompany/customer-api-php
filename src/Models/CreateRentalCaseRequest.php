@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Seventhings\Models;
 
+/**
+ * Request body for creating a rental case. Leave $isFullDay null to let the
+ * API infer the kind from $issueAt and $dueAt (ISO 8601 date-times for timed
+ * rentals).
+ */
 readonly class CreateRentalCaseRequest
 {
     /**
@@ -21,6 +26,9 @@ readonly class CreateRentalCaseRequest
         public array $attachments,
         public ?TimeInterval $issueDateReminder = null,
         public ?TimeInterval $dueDateReminder = null,
+        public ?bool $isFullDay = null,
+        public ?string $issueAt = null,
+        public ?string $dueAt = null,
     ) {}
 
     public function toArray(): array
@@ -42,6 +50,18 @@ readonly class CreateRentalCaseRequest
 
         if ($this->dueDateReminder !== null) {
             $data['due_date_reminder'] = $this->dueDateReminder->toArray();
+        }
+
+        if ($this->isFullDay !== null) {
+            $data['is_full_day'] = $this->isFullDay;
+        }
+
+        if ($this->issueAt !== null) {
+            $data['issue_at'] = $this->issueAt;
+        }
+
+        if ($this->dueAt !== null) {
+            $data['due_at'] = $this->dueAt;
         }
 
         return $data;

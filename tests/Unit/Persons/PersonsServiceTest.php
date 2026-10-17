@@ -38,7 +38,7 @@ final class PersonsServiceTest extends TestCase
         return new PersonsService($httpClient);
     }
 
-    public static function wrappedOperations(): iterable
+    public static function operations(): iterable
     {
         foreach (['list', 'get', 'getById', 'all'] as $operation) {
             yield $operation => [$operation];
@@ -46,15 +46,11 @@ final class PersonsServiceTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('wrappedOperations')]
-    public function wrappedResponsesPreserveTypedAndCustomFields(string $operation): void
+    #[DataProvider('operations')]
+    public function nestedFieldsAreNotUnwrapped(string $operation): void
     {
-        $fields = [
-            'id' => 42, 'email' => 'ada@example.test', 'first_name' => 'Ada',
-            'last_name' => 'Lovelace', 'department' => 'IT', 'cost_center' => 'CC-1',
-            'documents' => [['uuid' => 'file-1']], 'picture' => [['uuid' => 'picture-1']],
-        ];
-        $payload = ['uuid' => 'p-1', 'fields' => $fields];
+        $data = ['uuid' => 'p-1', 'fields' => ['person_uuid' => 'p-1', 'id' => 42, 'email' => 'ada@example.test']];
+        $payload = $data;
         if ($operation === 'list' || $operation === 'all') {
             $payload = ['items' => [$payload], 'total' => 1];
         }
@@ -66,16 +62,10 @@ final class PersonsServiceTest extends TestCase
             'all' => iterator_to_array($service->all())[0],
         };
 
-        $this->assertSame('p-1', $person->uuid);
-        $this->assertSame(42, $person->id);
-        $this->assertSame('ada@example.test', $person->email);
-        $this->assertSame('Ada', $person->firstname);
-        $this->assertSame('Lovelace', $person->lastname);
-        $this->assertSame('IT', $person->department);
-        $this->assertSame($fields['documents'], $person->documents);
-        $this->assertSame($fields['picture'], $person->picture);
-        $this->assertSame($fields, $person->fields);
-        $this->assertSame('CC-1', $person->field('cost_center'));
+        $this->assertSame('', $person->uuid);
+        $this->assertSame(0, $person->id);
+        $this->assertSame('', $person->email);
+        $this->assertSame($data, $person->fields);
     }
 
     #[Test]
@@ -84,7 +74,7 @@ final class PersonsServiceTest extends TestCase
         $data = [
             'items' => [
                 ['person_uuid' => 'p1', 'id' => 1, 'email' => 'a@b.com', 'first_name' => 'Alice', 'last_name' => 'Smith'],
-                ['uuid' => 'p2', 'id' => 2, 'email' => 'c@d.com'],
+                ['person_uuid' => 'p2', 'id' => 2, 'email' => 'c@d.com'],
             ],
             'page' => 1,
             'per_page' => 25,
@@ -200,7 +190,7 @@ final class PersonsServiceTest extends TestCase
             new GuzzleResponse(200, [], $page(['p3'])),
         ]);
 
-        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)), false);
+        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)));
 
         $this->assertCount(3, $persons);
         $this->assertInstanceOf(PersonResponse::class, $persons[0]);

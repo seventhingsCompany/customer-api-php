@@ -9,7 +9,8 @@ readonly class CreateTaskRequest
     /**
      * @param string[] $assignees
      * @param TaskReferenceInput[] $references
-     * @param TimeInterval[] $reminders
+     * @param TimeInterval[]|null $reminders null omits reminders; an empty
+     *     array explicitly disables them; a zero interval means "on the deadline"
      * @param string[]|null $attachments
      */
     public function __construct(
@@ -17,7 +18,7 @@ readonly class CreateTaskRequest
         public ?string $deadline,
         public array $assignees,
         public array $references,
-        public array $reminders,
+        public ?array $reminders,
         public ?TimeInterval $recurringSchedule,
         public ?string $comment = null,
         public ?array $attachments = null,
@@ -31,9 +32,12 @@ readonly class CreateTaskRequest
             'deadline' => $this->deadline,
             'assignees' => $this->assignees,
             'references' => array_map(fn(TaskReferenceInput $r) => $r->toArray(), $this->references),
-            'reminders' => array_map(fn(TimeInterval $r) => $r->toArray(), $this->reminders),
             'recurring_schedule' => $this->recurringSchedule?->toArray(),
         ];
+
+        if ($this->reminders !== null) {
+            $data['reminders'] = array_map(fn(TimeInterval $r) => $r->toArray(), $this->reminders);
+        }
 
         if ($this->comment !== null) {
             $data['comment'] = $this->comment;

@@ -53,8 +53,22 @@ final class FilesService
         return $this->httpClient->getRaw('file/' . $uuid . '/data')->body;
     }
 
-    public function getThumbnail(string $uuid): string
+    /**
+     * Downloads the default thumbnail, or one fitted within $width x $height
+     * (aspect ratio preserved) when both are given. Dimensions must be between
+     * 1 and 2000 pixels. The API creates and caches new sizes and may reject
+     * excess sizes with 422.
+     */
+    public function getThumbnail(string $uuid, ?int $width = null, ?int $height = null): string
     {
-        return $this->httpClient->getRaw('file/' . $uuid . '/thumbnail')->body;
+        $path = 'file/' . $uuid . '/thumbnail';
+        if ($width !== null || $height !== null) {
+            if ($width === null || $height === null || $width < 1 || $width > 2000 || $height < 1 || $height > 2000) {
+                throw new \InvalidArgumentException('thumbnail width and height must both be between 1 and 2000');
+            }
+            $path .= '?width=' . $width . '&height=' . $height;
+        }
+
+        return $this->httpClient->getRaw($path)->body;
     }
 }

@@ -21,8 +21,15 @@ final class HttpClient
     private GuzzleClient $guzzle;
     private string $token = '';
 
-    public function __construct(string $baseUrl, ?GuzzleClient $guzzle = null)
-    {
+    /**
+     * @param RateLimiter|null $rateLimiter Shared by every request sent
+     *     through this client; null disables throttling.
+     */
+    public function __construct(
+        string $baseUrl,
+        ?GuzzleClient $guzzle = null,
+        private readonly ?RateLimiter $rateLimiter = null,
+    ) {
         $this->baseUrl = rtrim($baseUrl, '/') . '/customer-api/v1';
         $this->guzzle = $guzzle ?? new GuzzleClient();
     }
@@ -152,6 +159,8 @@ final class HttpClient
 
     private function execute(string $method, string $url, array $options): Response
     {
+        $this->rateLimiter?->wait();
+
         try {
             $guzzleResponse = $this->guzzle->request($method, $url, $options);
         } catch (ConnectException $e) {
@@ -164,6 +173,7 @@ final class HttpClient
                     (string) $resp->getReasonPhrase(),
                     (string) $resp->getBody(),
                     $e,
+                    $resp->getHeaders(),
                 );
             }
             throw new NetworkException($e->getMessage(), $e);
@@ -177,6 +187,8 @@ final class HttpClient
                 $statusCode,
                 $guzzleResponse->getReasonPhrase(),
                 $body,
+                null,
+                $guzzleResponse->getHeaders(),
             );
         }
 

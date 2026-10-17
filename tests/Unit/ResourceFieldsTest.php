@@ -11,7 +11,6 @@ use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Seventhings\Helpers;
 use Seventhings\HttpClient;
 use Seventhings\Locations\LocationsService;
 use Seventhings\Rooms\RoomsService;
@@ -31,11 +30,11 @@ final class ResourceFieldsTest extends TestCase
 
     #[Test]
     #[DataProvider('responseFormats')]
-    public function exposesFlatFieldsForBothResponseFormats(string $serviceClass, string $operation, string $format): void
+    public function returnsResponseBodyUnchanged(string $serviceClass, string $operation, string $format): void
     {
         $fields = ['id' => 42, 'name' => 'Office', 'cost_center' => 'CC-1', 'picture' => [['uuid' => 'file-1']]];
-        $expected = $fields + ['uuid' => 'resource-1'];
-        $payload = $format === 'wrapped' ? ['uuid' => 'resource-1', 'fields' => $fields] : $expected;
+        $expected = $format === 'wrapped' ? ['uuid' => 'resource-1', 'fields' => $fields] : $fields + ['uuid' => 'resource-1'];
+        $payload = $expected;
         if ($operation === 'list' || $operation === 'all') {
             $payload = ['items' => [$payload]];
         }
@@ -49,23 +48,5 @@ final class ResourceFieldsTest extends TestCase
             'all' => iterator_to_array($service->all())[0]->data,
         };
         $this->assertSame($expected, $result);
-    }
-
-    #[Test]
-    public function preservesInnerUuidEvenWhenNull(): void
-    {
-        foreach (['custom-uuid', null] as $uuid) {
-            $fields = ['uuid' => $uuid, 'name' => 'Office'];
-            $this->assertSame($fields, Helpers::unwrapResourceFields(['uuid' => 'envelope-uuid', 'fields' => $fields]));
-        }
-    }
-
-    #[Test]
-    public function onlyUnwrapsRecognizedEnvelopes(): void
-    {
-        foreach ([['fields' => ['custom' => true]], ['uuid' => 'u', 'fields' => null], ['uuid' => 'u', 'fields' => 'custom']] as $resource) {
-            $this->assertSame($resource, Helpers::unwrapResourceFields($resource));
-        }
-        $this->assertSame(['uuid' => 'u'], Helpers::unwrapResourceFields(['uuid' => 'u', 'fields' => []]));
     }
 }

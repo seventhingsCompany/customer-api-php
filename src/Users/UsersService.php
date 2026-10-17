@@ -49,7 +49,9 @@ final class UsersService
                 order: $options?->order,
             ))->items;
 
-            yield from $items;
+            foreach ($items as $item) {
+                yield $item;
+            }
 
             if (count($items) < $perPage) {
                 return;
