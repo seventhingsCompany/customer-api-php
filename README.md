@@ -35,9 +35,6 @@ $client = Client::withCredentials($baseUrl, $username, $password, $clientId);
 
 // Or use an existing token
 $client = Client::withToken($baseUrl, $accessToken);
-
-// Or exchange an OAuth 2.1 authorization code (PKCE); codes are single-use
-$client = Client::withAuthorizationCode($baseUrl, $code, $codeVerifier, $redirectUri, $clientId);
 ```
 
 ### Rate Limiting
@@ -70,11 +67,6 @@ $client->auth->ping();
 
 // Login
 $token = $client->auth->login($username, $password, $clientId);
-
-// OAuth 2.1 authorization code + PKCE (form-encoded token exchange).
-// $redirectUri must match the authorization request.
-$token = $client->auth->loginAuthorizationCode($code, $codeVerifier, $redirectUri, $clientId);
-$client->setToken($token->accessToken);
 
 // Refresh token (uses stored clientId from login)
 $refreshed = $client->auth->refresh($token->refreshToken);

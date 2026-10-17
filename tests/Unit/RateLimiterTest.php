@@ -79,7 +79,7 @@ final class RateLimiterTest extends TestCase
             new GuzzleResponse(200, [], '{}'),
             new GuzzleResponse(200, [], 'raw'),
             new GuzzleResponse(201, ['Location-UUID' => 'f'], ''),
-            new GuzzleResponse(200, [], '{"access_token":"a","expires_in":1,"token_type":"Bearer","scope":null,"refresh_token":"r"}'),
+            new GuzzleResponse(200, [], '{}'),
             new GuzzleResponse(404, [], ''),
             new GuzzleResponse(200, [], '{}'),
         ]));
@@ -88,7 +88,7 @@ final class RateLimiterTest extends TestCase
         $http->get('objects');
         $http->getRaw('file/f/data');
         $http->postMultipart('file', [['name' => 'data', 'contents' => 'x', 'filename' => 'x']]);
-        $http->postFormUnauthenticated('auth_token', ['grant_type' => 'authorization_code']);
+        $http->postUnauthenticated('auth_token', ['grant_type' => 'password']);
         try {
             $http->delete('object/x');
         } catch (ApiException) {

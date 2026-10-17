@@ -29,26 +29,6 @@ final class AuthService
         return TokenResponse::fromArray($response->json());
     }
 
-    /**
-     * Exchanges an OAuth 2.1 authorization code using PKCE. $redirectUri must
-     * match the URI used for authorization; $codeVerifier is the original
-     * verifier used to generate the authorization request's challenge.
-     */
-    public function loginAuthorizationCode(string $code, string $codeVerifier, string $redirectUri, string $clientId): TokenResponse
-    {
-        $this->clientId = $clientId;
-
-        $response = $this->httpClient->postFormUnauthenticated('auth_token', [
-            'grant_type' => 'authorization_code',
-            'code' => $code,
-            'code_verifier' => $codeVerifier,
-            'redirect_uri' => $redirectUri,
-            'client_id' => $clientId,
-        ]);
-
-        return TokenResponse::fromArray($response->json());
-    }
-
     public function loginSSO(
         SSOProviderName $provider,
         string $authCode,

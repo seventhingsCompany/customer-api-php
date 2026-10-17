@@ -11,7 +11,6 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use Seventhings\Auth\AuthService;
 use Seventhings\CatalogItems\CatalogItemsService;
 use Seventhings\Files\FilesService;
 use Seventhings\HttpClient;
@@ -111,31 +110,6 @@ final class UpgradeTest extends TestCase
         $service = new CatalogItemsService($this->http([$page(['a', 'b']), $page(['c'])]));
         $uuids = array_map(fn($i) => $i->uuid, iterator_to_array($service->all(new ListOptions(perPage: 2)), false));
         $this->assertSame(['a', 'b', 'c'], $uuids);
-    }
-
-    #[Test]
-    public function loginAuthorizationCodeSendsFormEncodedPkceExchange(): void
-    {
-        $service = new AuthService($this->http([new GuzzleResponse(200, [], json_encode([
-            'access_token' => 'at', 'expires_in' => 3600, 'token_type' => 'Bearer', 'scope' => null, 'refresh_token' => 'rt', 'user_id' => 1,
-        ]))]));
-
-        $token = $service->loginAuthorizationCode('code 1', 'verifier', 'https://app.example/cb?x=1', 'client');
-
-        $this->assertSame('at', $token->accessToken);
-        $req = $this->request(0);
-        $this->assertSame('POST', $req->getMethod());
-        $this->assertSame('/customer-api/v1/auth_token', $req->getUri()->getPath());
-        $this->assertSame('application/x-www-form-urlencoded', $req->getHeaderLine('Content-Type'));
-        $this->assertFalse($req->hasHeader('Authorization'));
-        parse_str((string) $req->getBody(), $form);
-        $this->assertSame([
-            'grant_type' => 'authorization_code',
-            'code' => 'code 1',
-            'code_verifier' => 'verifier',
-            'redirect_uri' => 'https://app.example/cb?x=1',
-            'client_id' => 'client',
-        ], $form);
     }
 
     #[Test]

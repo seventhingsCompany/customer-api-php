@@ -86,25 +86,6 @@ final class Client
         return $client;
     }
 
-    /**
-     * Authenticates by exchanging an OAuth 2.1 authorization code with PKCE.
-     * Codes are single-use. See {@see withToken()} for $requestsPerMinute.
-     */
-    public static function withAuthorizationCode(
-        string $baseUrl,
-        string $code,
-        string $codeVerifier,
-        string $redirectUri,
-        string $clientId,
-        int $requestsPerMinute = RateLimiter::DEFAULT_REQUESTS_PER_MINUTE,
-    ): self {
-        $httpClient = self::createHttpClient($baseUrl, $requestsPerMinute);
-        $client = new self($httpClient);
-        $tokenResponse = $client->auth->loginAuthorizationCode($code, $codeVerifier, $redirectUri, $clientId);
-        $httpClient->setToken($tokenResponse->accessToken);
-        return $client;
-    }
-
     private static function createHttpClient(string $baseUrl, int $requestsPerMinute): HttpClient
     {
         return new HttpClient($baseUrl, null, RateLimiter::perMinute($requestsPerMinute));

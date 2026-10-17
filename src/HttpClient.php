@@ -86,21 +86,6 @@ final class HttpClient
         return $this->doRequest('POST', $this->buildUrl($path), $body, false);
     }
 
-    /**
-     * @param array<string, string> $form
-     */
-    public function postFormUnauthenticated(string $path, array $form): Response
-    {
-        return $this->execute('POST', $this->buildUrl($path), [
-            'headers' => [
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/x-www-form-urlencoded',
-            ],
-            'body' => http_build_query($form, '', '&', PHP_QUERY_RFC3986),
-            'http_errors' => false,
-        ]);
-    }
-
     public function getRaw(string $path): Response
     {
         return $this->doRaw('GET', $this->buildUrl($path));
