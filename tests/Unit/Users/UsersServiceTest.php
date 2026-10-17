@@ -122,4 +122,19 @@ final class UsersServiceTest extends TestCase
         $this->assertSame(42, $result->id);
         $this->assertStringEndsWith('/user/by-id/42', (string) $this->history[0]['request']->getUri());
     }
+
+    #[Test]
+    public function allYieldsSequentialKeysAcrossPages(): void
+    {
+        $page = fn(array $uuids) => new GuzzleResponse(200, [], json_encode([
+            'items' => array_map(fn($u) => ['uuid' => $u, 'id' => 1, 'email' => 'x@y.com'], $uuids),
+            'page' => 1, 'per_page' => 2, 'sort_by' => 'id', 'order' => 'asc', 'total' => 3,
+        ]));
+        $service = $this->createService([$page(['u1', 'u2']), $page(['u3'])]);
+
+        $users = iterator_to_array($service->all(new UserListOptions(perPage: 2)));
+
+        $this->assertSame([0, 1, 2], array_keys($users));
+        $this->assertSame(['u1', 'u2', 'u3'], array_map(fn($u) => $u->uuid, $users));
+    }
 }

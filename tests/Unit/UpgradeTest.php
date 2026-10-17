@@ -108,7 +108,7 @@ final class UpgradeTest extends TestCase
     {
         $page = fn(array $uuids) => new GuzzleResponse(200, [], json_encode(['items' => array_map(fn($u) => ['uuid' => $u, 'fields' => []], $uuids)]));
         $service = new CatalogItemsService($this->http([$page(['a', 'b']), $page(['c'])]));
-        $uuids = array_map(fn($i) => $i->uuid, iterator_to_array($service->all(new ListOptions(perPage: 2)), false));
+        $uuids = array_map(fn($i) => $i->uuid, iterator_to_array($service->all(new ListOptions(perPage: 2))));
         $this->assertSame(['a', 'b', 'c'], $uuids);
     }
 

@@ -190,7 +190,7 @@ final class PersonsServiceTest extends TestCase
             new GuzzleResponse(200, [], $page(['p3'])),
         ]);
 
-        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)), false);
+        $persons = iterator_to_array($service->all(new PersonListOptions(perPage: 2)));
 
         $this->assertCount(3, $persons);
         $this->assertInstanceOf(PersonResponse::class, $persons[0]);
